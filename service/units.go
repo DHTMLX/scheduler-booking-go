@@ -39,7 +39,7 @@ type Schedule struct {
 }
 
 const (
-	day        = 24 * 60 // in minutes
+	allDay     = 24 * 60 // in minutes
 	timeLayout = "15:04:00"
 	dateLayout = "2006-01-02"
 )
@@ -64,11 +64,11 @@ func (s *unitsService) GetAll() ([]Unit, error) {
 		return nil, err
 	}
 
-	units := createUnits(doctors)
+	units := createUnits(doctors, true)
 	return units, nil
 }
 
-func createUnits(doctors []data.Doctor) []Unit {
+func createUnits(doctors []data.Doctor, rep bool) []Unit {
 	now := time.Now().UTC()
 	ny, nm, nd := now.Date()
 
@@ -81,7 +81,7 @@ func createUnits(doctors []data.Doctor) []Unit {
 			slots[weekDay] = append(slots[weekDay], slotDate)
 		}
 
-		availableSlots := make(map[int64][]int64)
+		availableSlots := make(map[int64][]int64) // dat = array[timestamp]
 
 		schedules := make([]Schedule, 0)
 		originals := make(map[int64]bool) // timestamps originalStart
@@ -107,14 +107,14 @@ func createUnits(doctors []data.Doctor) []Unit {
 
 				// if rec event is created in the future and has weekdays less than now.WeekDay
 				recDate := time.UnixMilli(rec.Date).UTC()
-				y, m, d := recDate.Date()
+				rY, rM, rD := recDate.Date()
 				for i, nsch := range newSchedules {
 					from := sch.From
 					if nsch.From == "0:00" {
 						from = 0
 					}
 
-					nRecDate := time.Date(y, m, d+i, 0, from, 0, 0, now.Location())
+					nRecDate := time.Date(rY, rM, rD+i, 0, from, 0, 0, now.Location())
 					for date := now; date.Before(nRecDate); date = date.AddDate(0, 0, 7) {
 						for _, day := range days {
 							next := (7 + day - int(date.Weekday()) + i) % 7
@@ -128,28 +128,30 @@ func createUnits(doctors []data.Doctor) []Unit {
 				}
 
 				// slots
-				for _, d := range days {
-					for _, date := range slots[d] {
+				for _, day := range days {
+					for _, date := range slots[day] {
 						if !recDate.After(date) {
 							h, m, _ := date.Clock()
 							stamp := h*60 + m
 
-							if sch.From <= stamp && stamp <= sch.To {
-								nDate := date.Add(time.Duration((sch.From - stamp)) * time.Minute).UnixMilli()
-								availableSlots[nDate] = append(availableSlots[nDate], date.UnixMilli())
+							if sch.From <= stamp && stamp+d.SlotSize <= sch.To {
+								nDate := date.Add(time.Duration((sch.From - stamp)) * time.Minute).UnixMilli() // only date
+								newStamps := TimeStamps(&date, stamp, sch.From, sch.To, d.SlotSize, d.Gap, rep)
+								availableSlots[nDate] = append(availableSlots[nDate], newStamps...)
 							}
 						}
 					}
 
-					if sch.To > day {
-						for _, date := range slots[(d+1)%7] {
+					if sch.To > allDay {
+						for _, date := range slots[(day+1)%7] {
 							if !recDate.After(date) {
 								h, m, _ := date.Clock()
 								stamp := h*60 + m
 
-								if 0 <= stamp && stamp <= sch.To-day {
-									nDate := date.Add(time.Duration((-stamp)) * time.Minute).UnixMilli()
-									availableSlots[nDate] = append(availableSlots[nDate], date.UnixMilli())
+								if 0 <= stamp && stamp+d.SlotSize <= sch.To-day {
+									nDate := date.Add(time.Duration((-stamp)) * time.Minute).UnixMilli() // only date
+									newStamps := TimeStamps(&date, stamp, 0, sch.To-day, d.SlotSize, d.Gap, rep)
+									availableSlots[nDate] = append(availableSlots[nDate], newStamps...)
 								}
 							}
 						}
@@ -190,7 +192,7 @@ func createUnits(doctors []data.Doctor) []Unit {
 							delete(availableSlots, origStart.UnixMilli())
 
 							// if the parent recurring event was more than a day
-							if rec.DoctorSchedule.To > day {
+							if rec.DoctorSchedule.To > allDay {
 								y, m, d := origStart.Date()
 								stamp := newStamp(y, m, d+1, 0)
 								originals[stamp] = true
@@ -224,9 +226,9 @@ func createUnits(doctors []data.Doctor) []Unit {
 			for _, sch := range newSchedules {
 				from := rout.DoctorSchedule.From
 				to := rout.DoctorSchedule.To
-				if to > day {
+				if to > allDay {
 					from = 0
-					to -= day
+					to -= allDay
 				}
 
 				for _, date := range sch.Dates {
@@ -234,9 +236,12 @@ func createUnits(doctors []data.Doctor) []Unit {
 					weekDay := int(schDate.Weekday())
 
 					for _, slotDate := range slots[weekDay] {
-						if !schDate.After(slotDate) && !slotDate.After(schDate.Add(time.Duration(to-from)*time.Minute)) {
+						if !schDate.After(slotDate) && !slotDate.After(schDate.Add(time.Duration(to-from)*time.Minute)) { // FIXME
 							nDate := schDate.UnixMilli()
-							availableSlots[nDate] = append(availableSlots[nDate], slotDate.UnixMilli())
+							h, m, _ := slotDate.Clock()
+							stamp := h*60 + m
+							newStamps := TimeStamps(&slotDate, stamp, from, to, d.SlotSize, d.Gap, rep)
+							availableSlots[nDate] = append(availableSlots[nDate], newStamps...)
 						}
 					}
 				}
@@ -262,6 +267,7 @@ func createUnits(doctors []data.Doctor) []Unit {
 
 		usedSlots := []int64{}
 		for _, values := range availableSlots {
+			log.Print(values)
 			usedSlots = append(usedSlots, values...)
 		}
 
@@ -312,7 +318,7 @@ func createSchedules(from, to, size, gap int, days []int, dates []int64) []Sched
 	sch := newSchedule(from, to, size, gap, days, dates)
 	schedule = append(schedule, *sch)
 
-	if to > day {
+	if to > allDay {
 		newDays := make([]int, len(days))
 		newDates := make([]int64, len(dates))
 
@@ -329,7 +335,7 @@ func createSchedules(from, to, size, gap int, days []int, dates []int64) []Sched
 			}
 		}
 
-		sch := newSchedule(0, to-day, size, gap, newDays, newDates)
+		sch := newSchedule(0, to-allDay, size, gap, newDays, newDates)
 		schedule = append(schedule, *sch)
 	}
 
@@ -337,7 +343,7 @@ func createSchedules(from, to, size, gap int, days []int, dates []int64) []Sched
 }
 
 func m2t(m int) string {
-	if m >= day {
+	if m >= allDay {
 		return "24:00"
 	}
 
@@ -371,11 +377,11 @@ func additionalEvents(recurring map[int][]*data.DoctorRecurringRoutine, date int
 	}
 
 	for _, rec := range recurring[(6+origDay)%7] {
-		if rec.DoctorSchedule.To > day {
+		if rec.DoctorSchedule.To > allDay {
 			stamp := newStamp(y, m, d, 0)
 
 			if !originals[stamp] {
-				sch := newSchedule(0, rec.DoctorSchedule.To-day, size, gap, []int{}, []int64{stamp})
+				sch := newSchedule(0, rec.DoctorSchedule.To-allDay, size, gap, []int{}, []int64{stamp})
 				schedule = append(schedule, *sch)
 			} else {
 				delete(originals, stamp)
@@ -384,4 +390,31 @@ func additionalEvents(recurring map[int][]*data.DoctorRecurringRoutine, date int
 	}
 
 	return schedule
+}
+
+func TimeStamps(date *time.Time, ts, from, to, size, gap int, replace bool) []int64 {
+	if date == nil || !(from <= ts && ts+size <= to) {
+		return []int64{}
+	}
+
+	var (
+		slot       = size + gap
+		stamp      = ts - from
+		timestamps = make([]int64, 0, 2)
+	)
+
+	if stamp%slot == 0 || !replace {
+		timestamps = append(timestamps, date.UnixMilli())
+	} else {
+		begin := stamp / slot
+		end := begin + 1
+
+		y, m, d := date.Date()
+		timestamps = append(timestamps, newStamp(y, m, d, slot*begin+from))
+		if slot*end <= to-from-size {
+			timestamps = append(timestamps, newStamp(y, m, d, slot*end+from))
+		}
+	}
+
+	return timestamps
 }

@@ -39,12 +39,12 @@ func (s *reservationsService) GetAll() ([]data.OccupiedSlot, error) {
 	}
 
 	availableSlots := []data.OccupiedSlot{}
-	units := createUnits(doctors)
+	units := createUnits(doctors, false)
 	for _, unit := range units {
 		for _, uslots := range unit.UsedSlots {
 			record := mapRecords[uslots]
 			if record.DoctorID == unit.ID {
-				availableSlots = append(availableSlots, mapRecords[uslots])
+				availableSlots = append(availableSlots, record)
 			}
 		}
 	}
