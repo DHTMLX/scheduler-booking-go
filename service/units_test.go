@@ -133,15 +133,18 @@ func TestDaysFromRules(t *testing.T) {
 }
 
 func TestSlots(t *testing.T) {
-	cases := []struct {
-		date   time.Time
-		ts     int
-		from   int
-		to     int
-		size   int
-		gap    int
-		answer []int64
-	}{
+	type TestCase struct {
+		date          time.Time
+		ts            int
+		from          int
+		to            int
+		size          int
+		gap           int
+		answer        []int64 // for client reservation
+		answerReplace []int64 // for booking
+	}
+
+	cases := []TestCase{
 		{
 			date: time.Date(2024, 12, 16, 14, 20, 0, 0, time.UTC), // 2024-12-16 14:20
 			ts:   14*60 + 20,
@@ -150,7 +153,8 @@ func TestSlots(t *testing.T) {
 			size: 20,
 			gap:  20,
 			// 12:00, 12:40, 13:20, 14:00, 14:40, 15:20, 16:00, 16:40
-			answer: []int64{1734357600000, 1734360000000}, // 2024-12-16 14:00; 2024-12-16 14:40
+			answer:        []int64{1734358800000},                // 2024-12-16 14:20
+			answerReplace: []int64{1734357600000, 1734360000000}, // 2024-12-16 14:00; 2024-12-16 14:40
 		},
 		{
 			date: time.Date(2024, 12, 16, 14, 0, 0, 0, time.UTC), // 2024-12-16 14:00
@@ -160,7 +164,8 @@ func TestSlots(t *testing.T) {
 			size: 40,
 			gap:  10,
 			// 12:00, 12:50, 13:40, 14:30, 15:20, 16:10
-			answer: []int64{1734356400000, 1734359400000}, // 2024-12-16 13:40; 2024-12-16 14:30
+			answer:        []int64{1734357600000},                // 2024-12-16 14:00
+			answerReplace: []int64{1734356400000, 1734359400000}, // 2024-12-16 13:40; 2024-12-16 14:30
 		},
 		{
 			date: time.Date(2024, 12, 16, 14, 10, 0, 0, time.UTC), // 2024-12-16 14:10
@@ -170,9 +175,10 @@ func TestSlots(t *testing.T) {
 			size: 10,
 			gap:  40,
 			// 12:00, 12:50, 13:40, 14:30, 15:20, 16:10
-			answer: []int64{1734356400000, 1734359400000}, // 2024-12-16 13:40; 2024-12-16 14:30
+			answer:        []int64{1734358200000},                // 2024-12-16 14:10
+			answerReplace: []int64{1734356400000, 1734359400000}, // 2024-12-16 13:40; 2024-12-16 14:30
 		},
-		// without movement
+		// without moving schedule
 		{
 			date: time.Date(2024, 12, 16, 12, 0, 0, 0, time.UTC), // 2024-12-16 12:00
 			ts:   12 * 60,
@@ -181,7 +187,8 @@ func TestSlots(t *testing.T) {
 			size: 20,
 			gap:  20,
 			// 8:00, 8:40, 9:20, 10:00, 10:40, 11:20, 12:00, 12:40, 13:20, 14:00, 14:40, 15:20, 16:00, 16:40
-			answer: []int64{1734350400000}, // 2024-12-16 12:00
+			answer:        []int64{1734350400000}, // 2024-12-16 12:00
+			answerReplace: []int64{1734350400000}, // 2024-12-16 12:00
 		},
 		{
 			date: time.Date(2024, 12, 16, 13, 0, 0, 0, time.UTC), // 2024-12-16 13:00
@@ -191,9 +198,10 @@ func TestSlots(t *testing.T) {
 			size: 40,
 			gap:  20,
 			// 12:00, 13:00
-			answer: []int64{1734354000000}, // 2024-12-16 13:00
+			answer:        []int64{1734354000000}, // 2024-12-16 13:00
+			answerReplace: []int64{1734354000000}, // 2024-12-16 13:00
 		},
-		// start
+		// schedule start
 		{
 			date: time.Date(2024, 12, 16, 8, 0, 0, 0, time.UTC), // 2024-12-16 8:00
 			ts:   8 * 60,
@@ -202,7 +210,8 @@ func TestSlots(t *testing.T) {
 			size: 20,
 			gap:  20,
 			// 9:00, 9:40, 10:20, 11:00
-			answer: []int64{},
+			answer:        []int64{},
+			answerReplace: []int64{},
 		},
 		{
 			date: time.Date(2024, 12, 16, 11, 15, 0, 0, time.UTC), // 2024-12-16 11:15
@@ -212,7 +221,8 @@ func TestSlots(t *testing.T) {
 			size: 40,
 			gap:  10,
 			// 12:00, 12:50
-			answer: []int64{1734350400000}, // 2024-12-16 12:00
+			answer:        []int64{},
+			answerReplace: []int64{1734350400000}, // 2024-12-16 12:00
 		},
 		{
 			date: time.Date(2024, 12, 16, 11, 10, 0, 0, time.UTC), // 2024-12-16 11:10
@@ -222,9 +232,10 @@ func TestSlots(t *testing.T) {
 			size: 40,
 			gap:  10,
 			// 12:00, 12:50
-			answer: []int64{},
+			answer:        []int64{},
+			answerReplace: []int64{},
 		},
-		// end
+		// schedule end
 		{
 			date: time.Date(2024, 12, 16, 13, 45, 0, 0, time.UTC), // 2024-12-16 13:45
 			ts:   13*60 + 45,
@@ -233,7 +244,8 @@ func TestSlots(t *testing.T) {
 			size: 40,
 			gap:  20,
 			// 12:00, 13:00
-			answer: []int64{1734354000000}, // 2024-12-16 13:00
+			answer:        []int64{},
+			answerReplace: []int64{1734354000000}, // 2024-12-16 13:00
 		},
 		{
 			date: time.Date(2024, 12, 16, 14, 0, 0, 0, time.UTC), // 2024-12-16 14:00
@@ -243,7 +255,8 @@ func TestSlots(t *testing.T) {
 			size: 40,
 			gap:  20,
 			// 12:00, 13:00
-			answer: []int64{},
+			answer:        []int64{},
+			answerReplace: []int64{},
 		},
 		{
 			date: time.Date(2024, 12, 16, 13, 30, 0, 0, time.UTC), // 2024-12-16 13:30
@@ -253,7 +266,8 @@ func TestSlots(t *testing.T) {
 			size: 40,
 			gap:  20,
 			// 12:00, 13:00, 14:00
-			answer: []int64{1734354000000, 1734357600000}, // 2024-12-16 13:00; 2024-12-16 14:00
+			answer:        []int64{1734355800000},                // 2024-12-16 13:30
+			answerReplace: []int64{1734354000000, 1734357600000}, // 2024-12-16 13:00; 2024-12-16 14:00
 		},
 		// other
 		{
@@ -264,23 +278,34 @@ func TestSlots(t *testing.T) {
 			size: 40,
 			gap:  20,
 			// []
-			answer: []int64{},
+			answer:        []int64{},
+			answerReplace: []int64{},
 		},
 	}
 
-	for i, c := range cases {
-		stamps := timeStamps(
+	checkTestCase := func(c *TestCase, replace bool) {
+		stamps := getTimestamps(
 			&c.date,
 			c.ts,
 			c.from,
 			c.to,
 			c.size,
 			c.gap,
-			true,
+			replace,
 		)
 
-		if !reflect.DeepEqual(stamps, c.answer) {
-			t.Fatalf("case %d: expected %v, got %v", i, c.answer, stamps)
+		answer := c.answer
+		if replace {
+			answer = c.answerReplace
 		}
+
+		if !reflect.DeepEqual(stamps, answer) {
+			t.Fatalf("expected %v, got %v", answer, stamps)
+		}
+	}
+
+	for _, c := range cases {
+		checkTestCase(&c, false)
+		checkTestCase(&c, true)
 	}
 }

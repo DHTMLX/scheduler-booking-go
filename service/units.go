@@ -136,7 +136,7 @@ func createUnits(doctors []data.Doctor, rep bool) []Unit {
 
 							if sch.From <= stamp && stamp+d.SlotSize <= sch.To { // FIXME
 								nDate := date.Add(time.Duration((sch.From - stamp)) * time.Minute).UnixMilli() // only date
-								newStamps := timeStamps(&date, stamp, sch.From, sch.To, d.SlotSize, d.Gap, rep)
+								newStamps := getTimestamps(&date, stamp, sch.From, sch.To, d.SlotSize, d.Gap, rep)
 								availableSlots[nDate] = append(availableSlots[nDate], newStamps...)
 							}
 						}
@@ -150,7 +150,7 @@ func createUnits(doctors []data.Doctor, rep bool) []Unit {
 
 								if 0 <= stamp && stamp+d.SlotSize <= sch.To-day { // FIXME
 									nDate := date.Add(time.Duration((-stamp)) * time.Minute).UnixMilli() // only date
-									newStamps := timeStamps(&date, stamp, 0, sch.To-day, d.SlotSize, d.Gap, rep)
+									newStamps := getTimestamps(&date, stamp, 0, sch.To-day, d.SlotSize, d.Gap, rep)
 									availableSlots[nDate] = append(availableSlots[nDate], newStamps...)
 								}
 							}
@@ -240,7 +240,7 @@ func createUnits(doctors []data.Doctor, rep bool) []Unit {
 							nDate := schDate.UnixMilli()
 							h, m, _ := slotDate.Clock()
 							stamp := h*60 + m
-							newStamps := timeStamps(&slotDate, stamp, from, to, d.SlotSize, d.Gap, rep)
+							newStamps := getTimestamps(&slotDate, stamp, from, to, d.SlotSize, d.Gap, rep)
 							availableSlots[nDate] = append(availableSlots[nDate], newStamps...)
 						}
 					}
@@ -393,7 +393,7 @@ func additionalEvents(recurring map[int][]*data.DoctorRecurringRoutine, date int
 	return schedule
 }
 
-func timeStamps(date *time.Time, stamp, from, to, size, gap int, replace bool) []int64 {
+func getTimestamps(date *time.Time, stamp, from, to, size, gap int, replace bool) []int64 {
 	var (
 		slot    = size + gap
 		tsRem   = stamp % slot
@@ -402,22 +402,22 @@ func timeStamps(date *time.Time, stamp, from, to, size, gap int, replace bool) [
 	)
 
 	stamps := make([]int64, 0, 2)
-	add := func(ts int) {
+	addStamp := func(ts int) {
 		if from <= ts && ts+size <= to {
 			stamps = append(stamps, newStamp(y, m, d, ts))
 		}
 	}
 
 	if rem == tsRem || !replace {
-		add(stamp)
+		addStamp(stamp)
 	} else {
 		prev := (tsRem - rem + slot) % slot
 
 		first := stamp - prev
 		second := stamp + slot - prev
 
-		add(first)
-		add(second)
+		addStamp(first)
+		addStamp(second)
 	}
 
 	return stamps
