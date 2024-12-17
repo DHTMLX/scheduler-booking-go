@@ -3,6 +3,7 @@ package service
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func Test_m2t(t *testing.T) {
@@ -127,6 +128,159 @@ func TestDaysFromRules(t *testing.T) {
 		days := daysFromRules(c.rrule)
 		if !reflect.DeepEqual(c.days, days) {
 			t.Fatalf("expected %v, got %v", c.days, days)
+		}
+	}
+}
+
+func TestSlots(t *testing.T) {
+	cases := []struct {
+		date   time.Time
+		ts     int
+		from   int
+		to     int
+		size   int
+		gap    int
+		answer []int64
+	}{
+		{
+			date: time.Date(2024, 12, 16, 14, 20, 0, 0, time.UTC), // 2024-12-16 14:20
+			ts:   14*60 + 20,
+			from: 12 * 60,
+			to:   17 * 60,
+			size: 20,
+			gap:  20,
+			// 12:00, 12:40, 13:20, 14:00, 14:40, 15:20, 16:00, 16:40
+			answer: []int64{1734357600000, 1734360000000}, // 2024-12-16 14:00; 2024-12-16 14:40
+		},
+		{
+			date: time.Date(2024, 12, 16, 14, 0, 0, 0, time.UTC), // 2024-12-16 14:00
+			ts:   14 * 60,
+			from: 12 * 60,
+			to:   17 * 60,
+			size: 40,
+			gap:  10,
+			// 12:00, 12:50, 13:40, 14:30, 15:20, 16:10
+			answer: []int64{1734356400000, 1734359400000}, // 2024-12-16 13:40; 2024-12-16 14:30
+		},
+		{
+			date: time.Date(2024, 12, 16, 14, 10, 0, 0, time.UTC), // 2024-12-16 14:10
+			ts:   14*60 + 10,
+			from: 12 * 60,
+			to:   17 * 60,
+			size: 10,
+			gap:  40,
+			// 12:00, 12:50, 13:40, 14:30, 15:20, 16:10
+			answer: []int64{1734356400000, 1734359400000}, // 2024-12-16 13:40; 2024-12-16 14:30
+		},
+		// without movement
+		{
+			date: time.Date(2024, 12, 16, 12, 0, 0, 0, time.UTC), // 2024-12-16 12:00
+			ts:   12 * 60,
+			from: 8 * 60,
+			to:   17 * 60,
+			size: 20,
+			gap:  20,
+			// 8:00, 8:40, 9:20, 10:00, 10:40, 11:20, 12:00, 12:40, 13:20, 14:00, 14:40, 15:20, 16:00, 16:40
+			answer: []int64{1734350400000}, // 2024-12-16 12:00
+		},
+		{
+			date: time.Date(2024, 12, 16, 13, 0, 0, 0, time.UTC), // 2024-12-16 13:00
+			ts:   13 * 60,
+			from: 12 * 60,
+			to:   14 * 60,
+			size: 40,
+			gap:  20,
+			// 12:00, 13:00
+			answer: []int64{1734354000000}, // 2024-12-16 13:00
+		},
+		// start
+		{
+			date: time.Date(2024, 12, 16, 8, 0, 0, 0, time.UTC), // 2024-12-16 8:00
+			ts:   8 * 60,
+			from: 9 * 60,
+			to:   11 * 60,
+			size: 20,
+			gap:  20,
+			// 9:00, 9:40, 10:20, 11:00
+			answer: []int64{},
+		},
+		{
+			date: time.Date(2024, 12, 16, 11, 15, 0, 0, time.UTC), // 2024-12-16 11:15
+			ts:   11*60 + 15,
+			from: 12 * 60,
+			to:   14 * 60,
+			size: 40,
+			gap:  10,
+			// 12:00, 12:50
+			answer: []int64{1734350400000}, // 2024-12-16 12:00
+		},
+		{
+			date: time.Date(2024, 12, 16, 11, 10, 0, 0, time.UTC), // 2024-12-16 11:10
+			ts:   11*60 + 10,
+			from: 12 * 60,
+			to:   14 * 60,
+			size: 40,
+			gap:  10,
+			// 12:00, 12:50
+			answer: []int64{},
+		},
+		// end
+		{
+			date: time.Date(2024, 12, 16, 13, 45, 0, 0, time.UTC), // 2024-12-16 13:45
+			ts:   13*60 + 45,
+			from: 12 * 60,
+			to:   14 * 60,
+			size: 40,
+			gap:  20,
+			// 12:00, 13:00
+			answer: []int64{1734354000000}, // 2024-12-16 13:00
+		},
+		{
+			date: time.Date(2024, 12, 16, 14, 0, 0, 0, time.UTC), // 2024-12-16 14:00
+			ts:   14 * 60,
+			from: 12 * 60,
+			to:   14 * 60,
+			size: 40,
+			gap:  20,
+			// 12:00, 13:00
+			answer: []int64{},
+		},
+		{
+			date: time.Date(2024, 12, 16, 13, 30, 0, 0, time.UTC), // 2024-12-16 13:30
+			ts:   13*60 + 30,
+			from: 12 * 60,
+			to:   14*60 + 40,
+			size: 40,
+			gap:  20,
+			// 12:00, 13:00, 14:00
+			answer: []int64{1734354000000, 1734357600000}, // 2024-12-16 13:00; 2024-12-16 14:00
+		},
+		// other
+		{
+			date: time.Date(2024, 12, 16, 14, 0, 0, 0, time.UTC), // 2024-12-16 14:00
+			ts:   14 * 60,
+			from: 14 * 60,
+			to:   14*60 + 30,
+			size: 40,
+			gap:  20,
+			// []
+			answer: []int64{},
+		},
+	}
+
+	for i, c := range cases {
+		stamps := timeStamps(
+			&c.date,
+			c.ts,
+			c.from,
+			c.to,
+			c.size,
+			c.gap,
+			true,
+		)
+
+		if !reflect.DeepEqual(stamps, c.answer) {
+			t.Fatalf("case %d: expected %v, got %v", i, c.answer, stamps)
 		}
 	}
 }

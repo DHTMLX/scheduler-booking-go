@@ -114,7 +114,7 @@ func createUnits(doctors []data.Doctor, rep bool) []Unit {
 						from = 0
 					}
 
-					nRecDate := time.Date(rY, rM, rD+i, 0, from, 0, 0, now.Location())
+					nRecDate := time.Date(rY, rM, rD+i, 0, from, 0, 0, time.UTC)
 					for date := now; date.Before(nRecDate); date = date.AddDate(0, 0, 7) {
 						for _, day := range days {
 							next := (7 + day - int(date.Weekday()) + i) % 7
@@ -134,9 +134,9 @@ func createUnits(doctors []data.Doctor, rep bool) []Unit {
 							h, m, _ := date.Clock()
 							stamp := h*60 + m
 
-							if sch.From <= stamp && stamp+d.SlotSize <= sch.To {
+							if sch.From <= stamp && stamp+d.SlotSize <= sch.To { // FIXME
 								nDate := date.Add(time.Duration((sch.From - stamp)) * time.Minute).UnixMilli() // only date
-								newStamps := TimeStamps(&date, stamp, sch.From, sch.To, d.SlotSize, d.Gap, rep)
+								newStamps := timeStamps(&date, stamp, sch.From, sch.To, d.SlotSize, d.Gap, rep)
 								availableSlots[nDate] = append(availableSlots[nDate], newStamps...)
 							}
 						}
@@ -148,9 +148,9 @@ func createUnits(doctors []data.Doctor, rep bool) []Unit {
 								h, m, _ := date.Clock()
 								stamp := h*60 + m
 
-								if 0 <= stamp && stamp+d.SlotSize <= sch.To-day {
+								if 0 <= stamp && stamp+d.SlotSize <= sch.To-day { // FIXME
 									nDate := date.Add(time.Duration((-stamp)) * time.Minute).UnixMilli() // only date
-									newStamps := TimeStamps(&date, stamp, 0, sch.To-day, d.SlotSize, d.Gap, rep)
+									newStamps := timeStamps(&date, stamp, 0, sch.To-day, d.SlotSize, d.Gap, rep)
 									availableSlots[nDate] = append(availableSlots[nDate], newStamps...)
 								}
 							}
@@ -240,7 +240,7 @@ func createUnits(doctors []data.Doctor, rep bool) []Unit {
 							nDate := schDate.UnixMilli()
 							h, m, _ := slotDate.Clock()
 							stamp := h*60 + m
-							newStamps := TimeStamps(&slotDate, stamp, from, to, d.SlotSize, d.Gap, rep)
+							newStamps := timeStamps(&slotDate, stamp, from, to, d.SlotSize, d.Gap, rep)
 							availableSlots[nDate] = append(availableSlots[nDate], newStamps...)
 						}
 					}
@@ -300,7 +300,7 @@ func daysFromRules(rrule string) []int {
 			if num, ok := week[strings.ToUpper(weekDay)]; ok {
 				days = append(days, num)
 			} else {
-				log.Printf("invalid day abbreviation: %s", weekDay)
+				log.Printf("WARN: invalid day abbreviation: %s", weekDay)
 			}
 		}
 	}
@@ -352,6 +352,7 @@ func m2t(m int) string {
 	return fmt.Sprintf("%d:%02d", hours, minutes)
 }
 
+// year, month, day, min
 func newStamp(y int, m time.Month, d, min int) int64 {
 	return time.Date(y, m, d, 0, min, 0, 0, time.UTC).UnixMilli()
 }
@@ -392,29 +393,32 @@ func additionalEvents(recurring map[int][]*data.DoctorRecurringRoutine, date int
 	return schedule
 }
 
-func TimeStamps(date *time.Time, ts, from, to, size, gap int, replace bool) []int64 {
-	if date == nil || !(from <= ts && ts+size <= to) {
-		return []int64{}
-	}
-
+func timeStamps(date *time.Time, stamp, from, to, size, gap int, replace bool) []int64 {
 	var (
-		slot       = size + gap
-		stamp      = ts - from
-		timestamps = make([]int64, 0, 2)
+		slot    = size + gap
+		tsRem   = stamp % slot
+		rem     = from % slot
+		y, m, d = date.Date()
 	)
 
-	if stamp%slot == 0 || !replace {
-		timestamps = append(timestamps, date.UnixMilli())
-	} else {
-		begin := stamp / slot
-		end := begin + 1
-
-		y, m, d := date.Date()
-		timestamps = append(timestamps, newStamp(y, m, d, slot*begin+from))
-		if slot*end <= to-from-size {
-			timestamps = append(timestamps, newStamp(y, m, d, slot*end+from))
+	stamps := make([]int64, 0, 2)
+	add := func(ts int) {
+		if from <= ts && ts+size <= to {
+			stamps = append(stamps, newStamp(y, m, d, ts))
 		}
 	}
 
-	return timestamps
+	if rem == tsRem || !replace {
+		add(stamp)
+	} else {
+		prev := (tsRem - rem + slot) % slot
+
+		first := stamp - prev
+		second := stamp + slot - prev
+
+		add(first)
+		add(second)
+	}
+
+	return stamps
 }
