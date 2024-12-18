@@ -135,7 +135,6 @@ func TestDaysFromRules(t *testing.T) {
 func TestSlots(t *testing.T) {
 	type TestCase struct {
 		date          time.Time
-		ts            int
 		from          int
 		to            int
 		size          int
@@ -147,7 +146,6 @@ func TestSlots(t *testing.T) {
 	cases := []TestCase{
 		{
 			date: time.Date(2024, 12, 16, 14, 20, 0, 0, time.UTC), // 2024-12-16 14:20
-			ts:   14*60 + 20,
 			from: 12 * 60,
 			to:   17 * 60,
 			size: 20,
@@ -158,7 +156,6 @@ func TestSlots(t *testing.T) {
 		},
 		{
 			date: time.Date(2024, 12, 16, 14, 0, 0, 0, time.UTC), // 2024-12-16 14:00
-			ts:   14 * 60,
 			from: 12 * 60,
 			to:   17 * 60,
 			size: 40,
@@ -169,7 +166,6 @@ func TestSlots(t *testing.T) {
 		},
 		{
 			date: time.Date(2024, 12, 16, 14, 10, 0, 0, time.UTC), // 2024-12-16 14:10
-			ts:   14*60 + 10,
 			from: 12 * 60,
 			to:   17 * 60,
 			size: 10,
@@ -181,7 +177,6 @@ func TestSlots(t *testing.T) {
 		// without moving schedule
 		{
 			date: time.Date(2024, 12, 16, 12, 0, 0, 0, time.UTC), // 2024-12-16 12:00
-			ts:   12 * 60,
 			from: 8 * 60,
 			to:   17 * 60,
 			size: 20,
@@ -192,7 +187,6 @@ func TestSlots(t *testing.T) {
 		},
 		{
 			date: time.Date(2024, 12, 16, 13, 0, 0, 0, time.UTC), // 2024-12-16 13:00
-			ts:   13 * 60,
 			from: 12 * 60,
 			to:   14 * 60,
 			size: 40,
@@ -204,7 +198,6 @@ func TestSlots(t *testing.T) {
 		// schedule start
 		{
 			date: time.Date(2024, 12, 16, 8, 0, 0, 0, time.UTC), // 2024-12-16 8:00
-			ts:   8 * 60,
 			from: 9 * 60,
 			to:   11 * 60,
 			size: 20,
@@ -215,7 +208,6 @@ func TestSlots(t *testing.T) {
 		},
 		{
 			date: time.Date(2024, 12, 16, 11, 15, 0, 0, time.UTC), // 2024-12-16 11:15
-			ts:   11*60 + 15,
 			from: 12 * 60,
 			to:   14 * 60,
 			size: 40,
@@ -226,7 +218,6 @@ func TestSlots(t *testing.T) {
 		},
 		{
 			date: time.Date(2024, 12, 16, 11, 10, 0, 0, time.UTC), // 2024-12-16 11:10
-			ts:   11*60 + 10,
 			from: 12 * 60,
 			to:   14 * 60,
 			size: 40,
@@ -238,7 +229,6 @@ func TestSlots(t *testing.T) {
 		// schedule end
 		{
 			date: time.Date(2024, 12, 16, 13, 45, 0, 0, time.UTC), // 2024-12-16 13:45
-			ts:   13*60 + 45,
 			from: 12 * 60,
 			to:   14 * 60,
 			size: 40,
@@ -249,7 +239,6 @@ func TestSlots(t *testing.T) {
 		},
 		{
 			date: time.Date(2024, 12, 16, 14, 0, 0, 0, time.UTC), // 2024-12-16 14:00
-			ts:   14 * 60,
 			from: 12 * 60,
 			to:   14 * 60,
 			size: 40,
@@ -260,7 +249,6 @@ func TestSlots(t *testing.T) {
 		},
 		{
 			date: time.Date(2024, 12, 16, 13, 30, 0, 0, time.UTC), // 2024-12-16 13:30
-			ts:   13*60 + 30,
 			from: 12 * 60,
 			to:   14*60 + 40,
 			size: 40,
@@ -272,7 +260,6 @@ func TestSlots(t *testing.T) {
 		// other
 		{
 			date: time.Date(2024, 12, 16, 14, 0, 0, 0, time.UTC), // 2024-12-16 14:00
-			ts:   14 * 60,
 			from: 14 * 60,
 			to:   14*60 + 30,
 			size: 40,
@@ -286,7 +273,6 @@ func TestSlots(t *testing.T) {
 	checkTestCase := func(c *TestCase, replace bool) {
 		stamps := getTimestamps(
 			&c.date,
-			c.ts,
 			c.from,
 			c.to,
 			c.size,
