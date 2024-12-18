@@ -68,7 +68,7 @@ func (s *unitsService) GetAll() ([]Unit, error) {
 	return units, nil
 }
 
-func createUnits(doctors []data.Doctor, rep bool) []Unit {
+func createUnits(doctors []data.Doctor, replace bool) []Unit {
 	now := time.Now().UTC()
 	ny, nm, nd := now.Date()
 
@@ -81,16 +81,18 @@ func createUnits(doctors []data.Doctor, rep bool) []Unit {
 			slots[weekDay] = append(slots[weekDay], slotDate)
 		}
 
-		availableSlots := make(map[int64][]int64) // dat = array[timestamp]
+		availableSlots := make(map[int64][]int64) // date = array[timestamp]
 
 		schedules := make([]Schedule, 0)
 		originals := make(map[int64]bool) // timestamps originalStart
 
 		recMap := make(map[string]*data.DoctorRecurringRoutine) // map for recurring
 		recDays := make(map[int][]*data.DoctorRecurringRoutine) // map for days recurring
+
 		extensions := []data.DoctorRoutine{}
 		routines := []data.DoctorRoutine{}
 
+		// sort
 		for _, sch := range d.DoctorSchedule {
 			if rec := sch.DoctorRecurringRoutine; rec != nil {
 				rec.DoctorSchedule.From = sch.From
@@ -130,13 +132,11 @@ func createUnits(doctors []data.Doctor, rep bool) []Unit {
 				// slots
 				for _, day := range days {
 					for _, date := range slots[day] {
-						if !recDate.After(date) {
-							h, m, _ := date.Clock()
-							stamp := h*60 + m
-
-							if sch.From <= stamp && stamp+d.SlotSize <= sch.To { // FIXME
-								nDate := date.Add(time.Duration((sch.From - stamp)) * time.Minute).UnixMilli() // only date
-								newStamps := getTimestamps(&date, stamp, sch.From, sch.To, d.SlotSize, d.Gap, rep)
+						if recDate.Before(date.Add(time.Duration(d.SlotSize+d.Gap) * time.Minute)) {
+							newStamps := getTimestamps(&date, sch.From, sch.To, d.SlotSize, d.Gap, replace)
+							if len(newStamps) > 0 {
+								nDate := date.Truncate(24 * time.Hour).UnixMilli()
+								log.Print(nDate, " ", newStamps) // Add(time.Duration((sch.From - stamp)) * time.Minute).UnixMilli() // only date
 								availableSlots[nDate] = append(availableSlots[nDate], newStamps...)
 							}
 						}
@@ -144,13 +144,10 @@ func createUnits(doctors []data.Doctor, rep bool) []Unit {
 
 					if sch.To > allDay {
 						for _, date := range slots[(day+1)%7] {
-							if !recDate.After(date) {
-								h, m, _ := date.Clock()
-								stamp := h*60 + m
-
-								if 0 <= stamp && stamp+d.SlotSize <= sch.To-day { // FIXME
-									nDate := date.Add(time.Duration((-stamp)) * time.Minute).UnixMilli() // only date
-									newStamps := getTimestamps(&date, stamp, 0, sch.To-day, d.SlotSize, d.Gap, rep)
+							if recDate.Before(date.Add(time.Duration(d.SlotSize+d.Gap) * time.Minute)) {
+								newStamps := getTimestamps(&date, 0, sch.To-day, d.SlotSize, d.Gap, replace)
+								if len(newStamps) > 0 {
+									nDate := date.Truncate(24 * time.Hour).UnixMilli() // only date
 									availableSlots[nDate] = append(availableSlots[nDate], newStamps...)
 								}
 							}
@@ -189,6 +186,7 @@ func createUnits(doctors []data.Doctor, rep bool) []Unit {
 								routines = append(routines, ext)
 							}
 							originals[origStart.UnixMilli()] = true
+							origStart = origStart.Truncate(24 * time.Hour)
 							delete(availableSlots, origStart.UnixMilli())
 
 							// if the parent recurring event was more than a day
@@ -236,12 +234,12 @@ func createUnits(doctors []data.Doctor, rep bool) []Unit {
 					weekDay := int(schDate.Weekday())
 
 					for _, slotDate := range slots[weekDay] {
-						if !schDate.After(slotDate) && !slotDate.After(schDate.Add(time.Duration(to-from)*time.Minute)) { // FIXME
-							nDate := schDate.UnixMilli()
-							h, m, _ := slotDate.Clock()
-							stamp := h*60 + m
-							newStamps := getTimestamps(&slotDate, stamp, from, to, d.SlotSize, d.Gap, rep)
-							availableSlots[nDate] = append(availableSlots[nDate], newStamps...)
+						if schDate.Before(slotDate.Add(time.Duration(d.SlotSize+d.Gap) * time.Minute)) {
+							newStamps := getTimestamps(&slotDate, from, to, d.SlotSize, d.Gap, replace)
+							if len(newStamps) > 0 {
+								nDate := schDate.Truncate(24 * time.Hour).UnixMilli()
+								availableSlots[nDate] = append(availableSlots[nDate], newStamps...)
+							}
 						}
 					}
 				}
@@ -267,7 +265,6 @@ func createUnits(doctors []data.Doctor, rep bool) []Unit {
 
 		usedSlots := []int64{}
 		for _, values := range availableSlots {
-			log.Print(values)
 			usedSlots = append(usedSlots, values...)
 		}
 
@@ -393,12 +390,14 @@ func additionalEvents(recurring map[int][]*data.DoctorRecurringRoutine, date int
 	return schedule
 }
 
-func getTimestamps(date *time.Time, stamp, from, to, size, gap int, replace bool) []int64 {
+func getTimestamps(date *time.Time, from, to, size, gap int, replace bool) []int64 {
 	var (
-		slot    = size + gap
-		tsRem   = stamp % slot
-		rem     = from % slot
-		y, m, d = date.Date()
+		y, m, d   = date.Date()
+		h, min, _ = date.Clock()
+		slot      = size + gap
+		stamp     = h*60 + min
+		tsRem     = stamp % slot
+		rem       = from % slot
 	)
 
 	stamps := make([]int64, 0, 2)
