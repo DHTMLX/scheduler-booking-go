@@ -145,7 +145,7 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 					if sch.To > allDay {
 						for _, date := range slots[(day+1)%7] {
 							if recDate.Before(date.Add(time.Duration(d.SlotSize+d.Gap) * time.Minute)) {
-								newStamps := getTimestamps(&date, 0, sch.To-day, d.SlotSize, d.Gap, replace)
+								newStamps := getTimestamps(&date, 0, sch.To-allDay, d.SlotSize, d.Gap, replace)
 								if len(newStamps) > 0 {
 									nDate := date.Truncate(24 * time.Hour).UnixMilli() // only date
 									availableSlots[nDate] = append(availableSlots[nDate], newStamps...)
