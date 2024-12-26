@@ -304,7 +304,7 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 		original := make(map[string][]data.DoctorRoutine) // timestamp -> []rout
 
 		availableSlots := make(map[int64]struct{}) // date = array[timestamp]
-
+		availableSlots := make(map[int64]struct{})
 		schedules := make([]Schedule, 0)
 
 		for _, sch := range doctor.DoctorSchedule {
@@ -498,25 +498,38 @@ func getTimestamps(date *time.Time, from, to, size, gap int, replace bool) []int
 func getBookedSlots(slots map[int64][]time.Time, date int64, from, to, size, gap int, replace bool) []int64 {
 	today := time.UnixMilli(date).UTC()
 	y, m, d := today.Date()
-	log.Print(slots, date)
 
-	slotsDate := slots[date]
-	if to >= allDay {
-		slotsDate = append(slotsDate, slots[date+allDay*60000]...) // next day
-	}
+	slotsDate := slots[date-allDayMilli]                      // prev day
+	slotsDate = append(slotsDate, slots[date]...)             // today
+	slotsDate = append(slotsDate, slots[date+allDayMilli]...) // next day
 
 	segment := size + gap
+	newTo := to - (to-from)%segment
+	if newTo+size <= to {
+		newTo += segment
+	}
+
 	bookedSlots := make([]int64, 0, len(slotsDate)*2)
 	for _, slot := range slotsDate {
 		ts := int(slot.Sub(today).Minutes())
+		if !replace {
+			if from <= ts && ts+size <= to {
+				bookedSlots = append(bookedSlots, newStamp(y, m, d, ts))
+			}
+			continue
+		}
 
-		if from < ts+segment && ts+size <= to {
-			rem := (ts - from) % segment
-			bookedSlots = append(bookedSlots, newStamp(y, m, d, ts-rem))
-			if rem != 0 && replace {
-				if after := ts + segment - rem; after+size <= to {
-					bookedSlots = append(bookedSlots, newStamp(y, m, d, after))
-				}
+		rem := (segment + (ts-from)%segment) % segment
+
+		before := ts - rem
+		if from < before+segment && before < newTo {
+			bookedSlots = append(bookedSlots, newStamp(y, m, d, before))
+		}
+
+		if rem != 0 {
+			after := ts + segment - rem
+			if from < after+segment && after < newTo {
+				bookedSlots = append(bookedSlots, newStamp(y, m, d, after))
 			}
 		}
 	}
