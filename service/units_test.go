@@ -68,59 +68,87 @@ func Test_m2t(t *testing.T) {
 func TestDaysFromRules(t *testing.T) {
 	cases := []struct {
 		rrule string
-		days  []int
+		days  map[int]struct{}
 	}{
 		{
 			rrule: "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO",
-			days:  []int{1},
+			days: map[int]struct{}{
+				1: {},
+			},
 		},
 		{
 			rrule: "INTERVAL=1;FREQ=WEEKLY;BYDAY=MO,WE,FR",
-			days:  []int{1, 3, 5},
+			days: map[int]struct{}{
+				1: {},
+				3: {},
+				5: {},
+			},
 		},
 		{
 			rrule: "BYDAY=SA,SU;FREQ=WEEKLY;INTERVAL=1",
-			days:  []int{6, 0},
+			days: map[int]struct{}{
+				0: {},
+				6: {},
+			},
 		},
 		{
 			rrule: "BYDAY=SU;INTERVAL=2;FREQ=WEEKLY",
-			days:  []int{0},
+			days: map[int]struct{}{
+				0: {},
+			},
 		},
 		{
 			rrule: "FREQ=WEEKLY;BYDAY=TU,TH;INTERVAL=1",
-			days:  []int{2, 4},
+			days: map[int]struct{}{
+				2: {},
+				4: {},
+			},
 		},
 		{
 			rrule: "INTERVAL=1;BYDAY=TU,TH;FREQ=WEEKLY",
-			days:  []int{2, 4},
+			days: map[int]struct{}{
+				2: {},
+				4: {},
+			},
 		},
 		{
 			rrule: "INTERVAL=1;BYDAY=;FREQ=WEEKLY",
-			days:  []int{},
+			days:  map[int]struct{}{},
 		},
 		{
 			rrule: "INTERVAL=1;BYDAY=",
-			days:  []int{},
+			days:  map[int]struct{}{},
 		},
 		{
 			rrule: "BYDAY=;FREQ=WEEKLY",
-			days:  []int{},
+			days:  map[int]struct{}{},
 		},
 		{
 			rrule: "BYDAY=;",
-			days:  []int{},
+			days:  map[int]struct{}{},
 		},
 		{
 			rrule: "FREQ=WEEKLY;INTERVAL=1;BYDAY=Mo,wE,fr",
-			days:  []int{1, 3, 5},
+			days: map[int]struct{}{
+				1: {},
+				3: {},
+				5: {},
+			},
 		},
 		{
 			rrule: "INTERVAL=1;FREQ=WEEKLY;BYDAY=MO,WE,FE",
-			days:  []int{1, 3},
+			days: map[int]struct{}{
+				1: {},
+				3: {},
+			},
 		},
 		{
 			rrule: "INTERVAL=1;FREQ=WEEKLY;BYDAY=FR,WE,MO",
-			days:  []int{5, 3, 1},
+			days: map[int]struct{}{
+				1: {},
+				3: {},
+				5: {},
+			},
 		},
 	}
 
