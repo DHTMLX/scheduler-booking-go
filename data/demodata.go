@@ -56,7 +56,6 @@ func dataUp(tx *gorm.DB) {
 	y, m, d := now.Date()
 
 	genSchedule := func(from, to int, date int64, days int) []DoctorSchedule {
-		date += int64(from) * 60 * 1000
 		routine := make([]DoctorSchedule, days)
 		for i := range routine {
 			workDay := DoctorSchedule{
@@ -107,7 +106,7 @@ func dataUp(tx *gorm.DB) {
 	}
 
 	RecurringSchedule := func(from, to int, rrule string) DoctorSchedule {
-		date := time.Date(y, m, d, 0, from, 0, 0, time.UTC).UnixMilli()
+		date := time.Date(y, m, d, 0, 0, 0, 0, time.UTC).UnixMilli()
 
 		if to < from {
 			to += 24 * 60 // one day
