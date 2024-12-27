@@ -91,7 +91,7 @@ func (s *worktimeService) Add(data Worktime) (int, error) {
 		return 0, err
 	}
 
-	date := data.StartDate.UnixMilli()
+	date := data.StartDate.Truncate(24 * time.Hour).UnixMilli()
 
 	from := data.StartDate.Hour()*60 + data.StartDate.Minute()
 	to := from + data.duration()
@@ -125,7 +125,7 @@ func (s *worktimeService) UpdateDateSchedule(scheduleId int, data Worktime) erro
 		return err
 	}
 
-	date := data.StartDate.UnixMilli()
+	date := data.StartDate.Truncate(24 * time.Hour).UnixMilli()
 
 	from := data.StartDate.Hour()*60 + data.StartDate.Minute()
 	to := from + data.duration()
