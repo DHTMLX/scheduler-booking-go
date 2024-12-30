@@ -90,7 +90,7 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 		recurring := make(map[int][]data.DoctorSchedule)     // weekDay of rec -> []sch
 		deleted := make(map[int64][]int)                     // day -> []from
 
-		blockedSlots := make(map[int64]struct{})
+		bookedSlots := make(map[int64]struct{})
 		schedules := make([]Schedule, 0)
 
 		// separation of routine events
@@ -106,10 +106,10 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 		}
 
 		// recurring events
-		for _, sch := range doctor.DoctorSchedule {
-			if rec := sch.DoctorRecurringRoutine; rec != nil {
+		for _, recSch := range doctor.DoctorSchedule {
+			if rec := recSch.DoctorRecurringRoutine; rec != nil {
 				date := time.UnixMilli(rec.Date).UTC()
-				recID := strconv.Itoa(sch.ID)
+				recID := strconv.Itoa(recSch.ID)
 
 				recDays := daysFromRules(rec.Rrule)
 
@@ -129,7 +129,7 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 					origFrom := h*60 + m
 
 					origDay := int(orig.Weekday())
-					if _, ok := recDays[origDay]; ok && sch.From == origFrom {
+					if _, ok := recDays[origDay]; ok && recSch.From == origFrom {
 						if !ext.Deleted {
 							routines = append(routines, extSch)
 						}
@@ -143,13 +143,13 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 
 				days := make([]int, 0, len(recDays))
 				for day := range recDays {
-					recurring[day] = append(recurring[day], sch)
-					log.Print(&sch, recurring[day])
+					recurring[day] = append(recurring[day], recSch)
+					log.Print(&recSch, recurring[day])
 
 					// slots
-					booked := getRecBookedSlots(slotsDays, day, date, sch.From, sch.To, doctor.SlotSize, doctor.Gap, clearedExtensions, replace)
+					booked := getRecBookedSlots(slotsDays, day, date, recSch.From, recSch.To, doctor.SlotSize, doctor.Gap, clearedExtensions, replace)
 					for _, slot := range booked {
-						blockedSlots[slot] = struct{}{}
+						bookedSlots[slot] = struct{}{}
 					}
 
 					days = append(days, day)
@@ -158,11 +158,11 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 				// create empty schedules
 				emptySchedules := createEmpty(days, date)
 				for _, empty := range emptySchedules {
-					deleted[empty] = append(deleted[empty], sch.From)
+					deleted[empty] = append(deleted[empty], recSch.From)
 				}
 
 				// create schedules
-				newSchedules := createSchedules(sch.From, sch.To, doctor.SlotSize, doctor.Gap, days, nil)
+				newSchedules := createSchedules(recSch.From, recSch.To, doctor.SlotSize, doctor.Gap, days, nil)
 				schedules = append(schedules, newSchedules...)
 			}
 		}
@@ -174,7 +174,7 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 			// slots
 			booked := getBookedSlots(slotsDates, rout.Date, sch.From, sch.To, doctor.SlotSize, doctor.Gap, replace)
 			for _, slot := range booked {
-				blockedSlots[slot] = struct{}{}
+				bookedSlots[slot] = struct{}{}
 			}
 
 			date := time.UnixMilli(rout.Date).UTC()
@@ -247,9 +247,9 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 			}
 		}
 
-		slots := make([]int64, 0, len(blockedSlots))
-		for slot := range blockedSlots {
-			slots = append(slots, slot)
+		usedSlots := make([]int64, 0, len(bookedSlots))
+		for slot := range bookedSlots {
+			usedSlots = append(usedSlots, slot)
 		}
 
 		units[i] = Unit{
@@ -261,7 +261,7 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 			Price:     doctor.Price,
 			Review:    doctor.Review,
 			Preview:   doctor.ImageURL,
-			UsedSlots: slots,
+			UsedSlots: usedSlots,
 			Slots:     schedules,
 		}
 	}
