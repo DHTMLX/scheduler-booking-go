@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"scheduler-booking/data"
-	"time"
 )
 
 type reservationsService struct {
@@ -75,7 +74,7 @@ func (s *reservationsService) Delete(id int) error {
 	if err != nil {
 		return err
 	}
-	if slot.Date < time.Now().UTC().Add(-12*time.Hour).UnixMilli() { // for demo
+	if slot.Date < data.Now().UnixMilli() {
 		return fmt.Errorf("cannot delete reservation that time has expired")
 	}
 	return s.dao.OccupiedSlots.Delete(id)
@@ -89,7 +88,7 @@ func (s *reservationsService) checkIfReservationIsAvailable(doctorId int, date i
 	if slot.ID != 0 {
 		return fmt.Errorf("this time is already booked")
 	}
-	if date < time.Now().UTC().Add(-12*time.Hour).UnixMilli() { // for demo
+	if date < data.Now().UnixMilli() {
 		return fmt.Errorf("booking time has expired")
 	}
 

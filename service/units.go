@@ -414,8 +414,7 @@ func getRecBookedSlots(slots map[int][]time.Time, day int, date time.Time, from,
 }
 
 func createEmpty(days []int, date time.Time) []int64 {
-	today := time.Now().UTC()
-	today = today.Add(-12 * time.Hour) // for demo
+	today := data.Now()
 
 	if !date.After(today) {
 		return nil

@@ -2,7 +2,6 @@ package data
 
 import (
 	"errors"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -27,8 +26,9 @@ func (d *doctorsScheduleDAO) GetOne(id int) (DoctorSchedule, error) {
 func (d *doctorsScheduleDAO) GetAllSchedule() ([]DoctorSchedule, error) {
 	sch := make([]DoctorSchedule, 0)
 
+	date := DateNow().UnixMilli()
 	err := d.db.
-		Preload("DoctorRoutine", "date > ?", time.Now().UTC().Add(-12*time.Hour).UnixMilli()). // for demo
+		Preload("DoctorRoutine", "date >= ?", date).
 		Preload("DoctorRecurringRoutine").
 		Find(&sch).Error
 

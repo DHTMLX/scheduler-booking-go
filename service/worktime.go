@@ -42,9 +42,6 @@ func (s *worktimeService) GetRoutine() ([]DoctorRoutineStr, error) {
 	schedule, err := s.dao.DoctorsSchedule.GetAllSchedule()
 	out := make([]DoctorRoutineStr, 0)
 
-	nowDate := time.Now().UTC()
-	loc := nowDate.Location()
-
 	for _, sch := range schedule {
 		fh := sch.From / 60
 		fm := sch.From % 60
@@ -57,8 +54,8 @@ func (s *worktimeService) GetRoutine() ([]DoctorRoutineStr, error) {
 			r := DoctorRoutineStr{
 				ID:               sch.ID,
 				DoctorID:         sch.DoctorID,
-				StartDate:        time.Date(y, m, d, fh, fm, 0, 0, loc).Format(strFormat),
-				EndDate:          time.Date(y, m, d, th, tm, 0, 0, loc).Format(strFormat),
+				StartDate:        time.Date(y, m, d, fh, fm, 0, 0, time.UTC).Format(strFormat),
+				EndDate:          time.Date(y, m, d, th, tm, 0, 0, time.UTC).Format(strFormat),
 				OriginalStart:    routine.OriginalStart,
 				RecurringEventID: routine.RecurringEventID,
 				Deleted:          routine.Deleted,
@@ -72,7 +69,7 @@ func (s *worktimeService) GetRoutine() ([]DoctorRoutineStr, error) {
 			r := DoctorRoutineStr{
 				ID:        sch.ID,
 				DoctorID:  sch.DoctorID,
-				StartDate: time.Date(y, m, d, fh, fm, 0, 0, loc).Format(strFormat),
+				StartDate: time.Date(y, m, d, fh, fm, 0, 0, time.UTC).Format(strFormat),
 				EndDate:   endDate,
 				Rrule:     rec.Rrule,
 				Duration:  rec.Duration,
@@ -151,7 +148,7 @@ func (s *worktimeService) Delete(id int) error {
 }
 
 func (w Worktime) validate() error {
-	if w.StartDate.UnixMilli() < time.Now().UTC().Add(-12*time.Hour).UnixMilli() { // for demo
+	if w.StartDate.UnixMilli() < data.Now().UnixMilli() {
 		return fmt.Errorf("cannot set work time in the past")
 	}
 	if w.StartDate.UnixMilli() >= w.EndDate.UnixMilli() {

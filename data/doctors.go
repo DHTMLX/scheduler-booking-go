@@ -1,8 +1,6 @@
 package data
 
 import (
-	"time"
-
 	"gorm.io/gorm"
 )
 
@@ -26,13 +24,13 @@ func (d *doctorsDAO) GetAll(preload bool) ([]Doctor, error) {
 	if !preload {
 		err = d.db.Find(&doctors).Error
 	} else {
-		now := time.Now().UTC().Add(-12 * time.Hour).UnixMilli() // for demo
+		date := DateNow().UnixMilli()
 		err = d.db.
 			Preload("Review").
-			Preload("OccupiedSlots", "date > ?", now).
+			Preload("OccupiedSlots", "date >= ?", date).
 			Preload("DoctorSchedule").
 			Preload("DoctorSchedule.DoctorRecurringRoutine").
-			Preload("DoctorSchedule.DoctorRoutine", "date > ?", now).
+			Preload("DoctorSchedule.DoctorRoutine", "date >= ?", date).
 			Find(&doctors).Error
 	}
 
