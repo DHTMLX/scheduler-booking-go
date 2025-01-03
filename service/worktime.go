@@ -151,7 +151,7 @@ func (s *worktimeService) Delete(id int) error {
 }
 
 func (w Worktime) validate() error {
-	if w.StartDate.UnixMilli() < time.Now().Add(-12*time.Hour).UnixMilli() {
+	if w.StartDate.UnixMilli() < time.Now().UTC().Add(-12*time.Hour).UnixMilli() { // for demo
 		return fmt.Errorf("cannot set work time in the past")
 	}
 	if w.StartDate.UnixMilli() >= w.EndDate.UnixMilli() {

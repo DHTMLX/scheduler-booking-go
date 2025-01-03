@@ -37,8 +37,9 @@ type DoctorRecurringRoutine struct {
 	ID         int
 	ScheduleID int
 	Date       int64
-	Rrule      string
-	Duration   int // in seconds
+
+	Rrule    string
+	Duration int // in seconds
 
 	DoctorSchedule DoctorSchedule `gorm:"foreignkey:ScheduleID"`
 }

@@ -28,7 +28,7 @@ func (d *doctorsScheduleDAO) GetAllSchedule() ([]DoctorSchedule, error) {
 	sch := make([]DoctorSchedule, 0)
 
 	err := d.db.
-		Preload("DoctorRoutine", "date > ?", time.Now().Add(-12*time.Hour).UnixMilli()).
+		Preload("DoctorRoutine", "date > ?", time.Now().UTC().Add(-12*time.Hour).UnixMilli()). // for demo
 		Preload("DoctorRecurringRoutine").
 		Find(&sch).Error
 
