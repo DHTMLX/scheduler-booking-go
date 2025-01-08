@@ -269,24 +269,25 @@ func daysFromRules(rrule string) map[int]struct{} {
 }
 
 func createSchedules(from, to, size, gap int, days []int, dates []int64) []Schedule {
-	schedule := []Schedule{}
+	schedules := make([]Schedule, 0, 2)
 	if len(dates) == 0 && len(days) == 0 {
 		// skip this rule as it is already expired
-		return schedule
+		return schedules
 	}
 
-	medium := to
-	if medium > allDay {
-		slot := size + gap
-		remTo := (to - from) % slot
-		rem := (to - remTo - allDay + slot) % slot
-		medium = allDay + rem
+	median := to
+	segment := size + gap
+	if allDay+size <= to {
+		rem := (allDay - from) % segment
+		median = allDay + (segment-rem)%segment
 	}
 
-	sch := newSchedule(from, medium, size, gap, days, dates)
-	schedule = append(schedule, *sch)
+	if from+segment <= median {
+		sch := newSchedule(from, median, size, gap, days, dates)
+		schedules = append(schedules, *sch)
+	}
 
-	if to > allDay && to-medium >= size {
+	if median+size <= to {
 		newDays := make([]int, len(days))
 		newDates := make([]int64, len(dates))
 
@@ -295,15 +296,14 @@ func createSchedules(from, to, size, gap int, days []int, dates []int64) []Sched
 		}
 
 		for i, date := range dates {
-			y, m, d := time.UnixMilli(date).UTC().Date()
-			newDates[i] = newStamp(y, m, d+1, 0)
+			newDates[i] = date + allDayMilli
 		}
 
-		sch := newSchedule(medium-allDay, to-allDay, size, gap, newDays, newDates)
-		schedule = append(schedule, *sch)
+		sch := newSchedule(median-allDay, to-allDay, size, gap, newDays, newDates)
+		schedules = append(schedules, *sch)
 	}
 
-	return schedule
+	return schedules
 }
 
 func m2t(m int) string {

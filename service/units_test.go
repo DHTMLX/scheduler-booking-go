@@ -160,6 +160,128 @@ func TestDaysFromRules(t *testing.T) {
 	}
 }
 
+func TestCreateSchedules(t *testing.T) {
+	cases := []struct {
+		From  int
+		To    int
+		Size  int
+		Gap   int
+		Days  []int
+		Dates []int64
+
+		Schedules []Schedule
+	}{
+		{
+			From: 22*60 + 40,   // 22:40
+			To:   24*60 + 1*60, // 01:00
+			Size: 20,
+			Gap:  40,
+			// 22:40, 23:40, 00:40,
+			Days:  []int{1, 2, 3},
+			Dates: []int64{newStamp(2025, 1, 8, 0)},
+
+			Schedules: []Schedule{
+				{
+					From:  "22:40",
+					To:    "24:40",
+					Days:  []int{1, 2, 3},
+					Dates: []int64{newStamp(2025, 1, 8, 0)},
+				},
+				{
+					From:  "00:40",
+					To:    "01:00",
+					Days:  []int{2, 3, 4},
+					Dates: []int64{newStamp(2025, 1, 9, 0)},
+				},
+			},
+		},
+		{
+			From: 21*60 + 35,   // 21:35
+			To:   24*60 + 1*60, // 01:00
+			Size: 30,
+			Gap:  35,
+			Days: []int{4, 5, 6},
+			Dates: []int64{
+				newStamp(2025, 1, 8, 0),
+				newStamp(2025, 1, 10, 0),
+			},
+
+			Schedules: []Schedule{
+				{
+					From: "21:35",
+					To:   "24:50",
+					Days: []int{4, 5, 6},
+					Dates: []int64{
+						newStamp(2025, 1, 8, 0),
+						newStamp(2025, 1, 10, 0),
+					},
+				},
+			},
+		},
+		{
+			From: 22*60 + 40,   // 22:40
+			To:   24*60 + 1*60, // 01:00
+			Size: 40,
+			Gap:  40,
+			Days: []int{4, 5, 6},
+			Dates: []int64{
+				newStamp(2025, 1, 8, 0),
+				newStamp(2025, 1, 9, 0),
+			},
+
+			Schedules: []Schedule{
+				{
+					From: "22:40",
+					To:   "24:00",
+					Days: []int{4, 5, 6},
+					Dates: []int64{
+						newStamp(2025, 1, 8, 0),
+						newStamp(2025, 1, 9, 0),
+					},
+				},
+				{
+					From: "00:00",
+					To:   "01:00",
+					Days: []int{5, 6, 0},
+					Dates: []int64{
+						newStamp(2025, 1, 9, 0),
+						newStamp(2025, 1, 10, 0),
+					},
+				},
+			},
+		},
+		{
+			From: 23*60 + 40, // 23:40
+			To:   24*60 + 10, // 00:10
+			Size: 40,
+			Gap:  40,
+			Days: []int{4, 5, 6},
+			Dates: []int64{
+				newStamp(2025, 1, 8, 0),
+				newStamp(2025, 1, 9, 0),
+			},
+
+			Schedules: []Schedule{},
+		},
+	}
+
+	for _, c := range cases {
+		schedules := createSchedules(c.From, c.To, c.Size, c.Gap, c.Days, c.Dates)
+		if len(c.Schedules) != len(schedules) {
+			t.Fatal("len()", schedules)
+		}
+
+		for i, schedule := range schedules {
+			if c.Schedules[i].From != schedule.From ||
+				c.Schedules[i].To != schedule.To ||
+				!reflect.DeepEqual(c.Schedules[i].Days, schedule.Days) ||
+				!reflect.DeepEqual(c.Schedules[i].Dates, schedule.Dates) {
+				t.Fatalf("expected: %+v\ngot: %+v", c.Schedules[i], schedule)
+			}
+		}
+	}
+}
+
 func TestBookedSlots(t *testing.T) {
 	type TestCase struct {
 		slots         []time.Time
