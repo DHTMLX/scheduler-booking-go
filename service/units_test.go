@@ -13,27 +13,27 @@ func Test_m2t(t *testing.T) {
 	}{
 		{
 			minutes:       15,
-			expectedHours: "0:15",
+			expectedHours: "00:15",
 		},
 		{
 			minutes:       30,
-			expectedHours: "0:30",
+			expectedHours: "00:30",
 		},
 		{
 			minutes:       60,
-			expectedHours: "1:00",
+			expectedHours: "01:00",
 		},
 		{
 			minutes:       90,
-			expectedHours: "1:30",
+			expectedHours: "01:30",
 		},
 		{
 			minutes:       135,
-			expectedHours: "2:15",
+			expectedHours: "02:15",
 		},
 		{
 			minutes:       545,
-			expectedHours: "9:05",
+			expectedHours: "09:05",
 		},
 		{
 			minutes:       875,
@@ -52,8 +52,8 @@ func Test_m2t(t *testing.T) {
 			expectedHours: "24:00",
 		},
 		{
-			minutes:       1600,
-			expectedHours: "26:40",
+			minutes:       1480,
+			expectedHours: "24:40",
 		},
 	}
 

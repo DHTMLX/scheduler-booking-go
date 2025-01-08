@@ -309,7 +309,7 @@ func createSchedules(from, to, size, gap int, days []int, dates []int64) []Sched
 func m2t(m int) string {
 	hours := m / 60
 	minutes := m % 60
-	return fmt.Sprintf("%d:%02d", hours, minutes)
+	return fmt.Sprintf("%02d:%02d", hours, minutes)
 }
 
 // year, month, day, min
