@@ -84,9 +84,9 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 			slotsDates[date] = append(slotsDates[date], slotDate)
 		}
 
-		routines := make(map[int][]data.DoctorSchedule)      // week day  -> []sch
-		extensions := make(map[string][]data.DoctorSchedule) // recID     -> []sch
-		empty := make(map[int64]int)                         // timestamp -> recID
+		routines := make(map[int][]data.DoctorSchedule)      // week day -> []sch
+		extensions := make(map[string][]data.DoctorSchedule) // recID    -> []sch
+		empty := make(map[int]map[int64]struct{})            // week day -> map timestamp
 
 		bookedSlots := make(map[int64]struct{})
 		schedules := make([]Schedule, 0)
@@ -99,122 +99,93 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 					continue
 				}
 
-				date := time.UnixMilli(rout.Date).UTC()
-				weekDay := int(date.Weekday())
-				routines[weekDay] = append(routines[weekDay], sch)
+				day := int(time.UnixMilli(rout.Date).UTC().Weekday())
+				routines[day] = append(routines[day], sch)
 			}
 		}
 
 		// recurring events
 		for _, recSch := range doctor.DoctorSchedule {
 			if rec := recSch.DoctorRecurringRoutine; rec != nil {
-				date := time.UnixMilli(rec.Date).UTC()
 				recID := strconv.Itoa(recSch.ID)
-
 				recDays := daysFromRules(rec.Rrule)
 				exts := extensions[recID]
 
+				empty[recSch.ID] = make(map[int64]struct{})
+
 				// check exts
-				clearedExtensions := make(map[int64]struct{}, 2*len(exts))
 				for _, extSch := range exts {
 					ext := extSch.DoctorRoutine
 
-					orig, err := time.Parse("2006-01-02 15:04", ext.OriginalStart)
+					original, err := time.Parse("2006-01-02 15:04", ext.OriginalStart)
 					if err != nil {
 						continue
 					}
 
-					h, m, _ := orig.Clock()
+					h, m, _ := original.Clock()
 					origFrom := h*60 + m
 
-					origDay := int(orig.Weekday())
-					if _, ok := recDays[origDay]; ok && recSch.From == origFrom {
-						if !ext.Deleted {
-							// extension
-							day := int(time.UnixMilli(extSch.DoctorRoutine.Date).UTC().Weekday())
-							routines[day] = append(routines[day], extSch)
+					origDay := int(original.Weekday())
+					for _, recDay := range recDays {
+						if recDay == origDay && recSch.From == origFrom {
+							if !ext.Deleted {
+								day := int(time.UnixMilli(ext.Date).UTC().Weekday())
+								routines[day] = append(routines[day], extSch)
+							}
+
+							// deleted
+							origDate := original.Truncate(24 * time.Hour).UnixMilli()
+							emptySch := data.DoctorSchedule{
+								From: recSch.From,
+								To:   recSch.To,
+								DoctorRoutine: &data.DoctorRoutine{
+									Date:             origDate,
+									Deleted:          true,
+									RecurringEventID: recID,
+								},
+							}
+
+							empty[recSch.ID][original.UnixMilli()] = struct{}{}
+
+							routines[origDay] = append(routines[origDay], emptySch)
 						}
-
-						// deleted
-						origDate := orig.Truncate(24 * time.Hour).UnixMilli()
-						emptySch := data.DoctorSchedule{
-							From: origFrom,
-							To:   origFrom,
-							DoctorRoutine: &data.DoctorRoutine{
-								Date:    origDate,
-								Deleted: true,
-							},
-						}
-
-						milli := orig.UnixMilli()
-						empty[milli] = recSch.ID
-						clearedExtensions[milli] = struct{}{}
-
-						routines[origDay] = append(routines[origDay], emptySch)
 					}
 				}
 
-				days := make([]int, 0, len(recDays))
+				date := time.UnixMilli(rec.Date).UTC()
 				for day := range recDays {
 					// slots
-					booked := getRecBookedSlots(slotsDays, day, date, recSch.From, recSch.To, doctor.SlotSize, doctor.Gap, clearedExtensions, replace)
+					booked := getRecBookedSlots(slotsDays, day, date, recSch.From, recSch.To, doctor.SlotSize, doctor.Gap, empty[recSch.ID], replace)
 					for _, slot := range booked {
 						bookedSlots[slot] = struct{}{}
 					}
-
-					days = append(days, day)
 				}
 
 				// create empty schedules
-				emptySchedules := createEmpty(days, date)
+				emptySchedules := createEmpty(recDays, date)
 				for i, emptyDate := range emptySchedules {
 					sch := data.DoctorSchedule{
 						From: recSch.From,
-						To:   recSch.From,
+						To:   recSch.To,
 						DoctorRoutine: &data.DoctorRoutine{
-							Date:    emptyDate,
-							Deleted: true,
+							Date:             emptyDate,
+							Deleted:          true,
+							RecurringEventID: recID,
 						},
 					}
 
-					empty[timeStamp(emptyDate, recSch.From)] = recSch.ID
+					empty[recSch.ID][timeStamp(emptyDate, recSch.From)] = struct{}{}
 
-					day := days[i%len(days)]
+					day := recDays[i%len(recDays)]
 					routines[day] = append(routines[day], sch)
 				}
 			}
 		}
 
-		takenDates := make(map[int64]bool)
-		for _, recSch := range doctor.DoctorSchedule {
-			if rec := recSch.DoctorRecurringRoutine; rec != nil {
-				dates := []int64{}
-				recDays := daysFromRules(rec.Rrule)
-				daysSlice := make([]int, 0, len(recDays))
-				for day := range recDays {
-					for _, routSch := range routines[day] {
-						rout := routSch.DoctorRoutine
-						date := rout.Date
-						if date > rec.Date-7*allDayMilli {
-							if empty[timeStamp(date, recSch.From)] != recSch.ID {
-								dates = append(dates, date)
-								takenDates[date] = true
-							}
-						}
-					}
-
-					daysSlice = append(daysSlice, day)
-				}
-
-				// create schedules
-				newSchedules := createSchedules(recSch.From, recSch.To, doctor.SlotSize, doctor.Gap, daysSlice, dates)
-				schedules = append(schedules, newSchedules...)
-			}
-		}
-
+		taken := make(map[int][]int64)
 		for _, routSchs := range routines {
 			for _, routSch := range routSchs {
-				if rout := routSch.DoctorRoutine; rout != nil && !(rout.Deleted && takenDates[rout.Date]) {
+				if rout := routSch.DoctorRoutine; rout != nil {
 					// slots
 					booked := getBookedSlots(slotsDates, rout.Date, routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, replace)
 					for _, slot := range booked {
@@ -223,8 +194,57 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 
 					// schedules
 					newSchedules := createSchedules(routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, nil, []int64{rout.Date})
+
+					for i, sch := range newSchedules {
+						for _, date := range sch.Dates {
+							weekDay := int(time.UnixMilli(date).UTC().Weekday())
+							taken[weekDay] = append(taken[weekDay], date)
+						}
+
+						if rout.Deleted {
+							newSchedules[i].To = newSchedules[i].From
+
+							recID, _ := strconv.Atoi(rout.RecurringEventID)
+							empty[recID][timeStamp(sch.Dates[0], routSch.From*(1-i))] = struct{}{}
+						}
+					}
+
 					schedules = append(schedules, newSchedules...)
 				}
+			}
+		}
+
+		for _, recSch := range doctor.DoctorSchedule {
+			if rec := recSch.DoctorRecurringRoutine; rec != nil {
+				days := daysFromRules(rec.Rrule)
+
+				// create schedules
+				newSchedules := createSchedules(recSch.From, recSch.To, doctor.SlotSize, doctor.Gap, days, nil)
+				log.Print(newSchedules)
+				deleted := empty[recSch.ID]
+
+				for i, sch := range newSchedules {
+					dates := make(map[int64]struct{})
+
+					for _, day := range sch.Days {
+						for _, date := range taken[day] {
+							if date > rec.Date-7*allDayMilli { // fixme
+								if _, ok := deleted[timeStamp(date, recSch.From*(1-i))]; !ok {
+									dates[date] = struct{}{}
+								}
+							}
+						}
+					}
+
+					datesSlice := make([]int64, 0, len(dates))
+					for date := range dates {
+						datesSlice = append(datesSlice, date)
+					}
+
+					newSchedules[i].Dates = datesSlice
+				}
+
+				schedules = append(schedules, newSchedules...)
 			}
 		}
 
@@ -250,7 +270,7 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 	return units
 }
 
-func daysFromRules(rrule string) map[int]struct{} {
+func daysFromRulesMap(rrule string) map[int]struct{} {
 	re := regexp.MustCompile(`BYDAY=([^;]+)`)
 	matches := re.FindStringSubmatch(rrule)
 
@@ -264,6 +284,26 @@ func daysFromRules(rrule string) map[int]struct{} {
 			} else {
 				log.Printf("WARN: invalid day abbreviation: %s", weekDay)
 			}
+		}
+	}
+
+	return days
+}
+
+func daysFromRules(rrule string) []int {
+	re := regexp.MustCompile(`BYDAY=([^;]+)`)
+	matches := re.FindStringSubmatch(rrule)
+	if len(matches) == 1 {
+		return []int{}
+	}
+
+	weekDays := strings.Split(matches[1], ",")
+	days := make([]int, 0, len(weekDays))
+	for _, weekDay := range weekDays {
+		if num, ok := week[strings.ToUpper(weekDay)]; ok {
+			days = append(days, num)
+		} else {
+			log.Printf("WARN: invalid day abbreviation: %s", weekDay)
 		}
 	}
 
@@ -284,10 +324,8 @@ func createSchedules(from, to, size, gap int, days []int, dates []int64) []Sched
 		median = allDay + (segment-rem)%segment
 	}
 
-	if from+segment <= median {
-		sch := newSchedule(from, median, size, gap, days, dates)
-		schedules = append(schedules, *sch)
-	}
+	sch := newSchedule(from, median, size, gap, days, dates)
+	schedules = append(schedules, *sch)
 
 	if median+size <= to {
 		newDays := make([]int, len(days))
