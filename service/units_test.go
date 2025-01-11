@@ -68,86 +68,86 @@ func Test_m2t(t *testing.T) {
 func TestDaysFromRules(t *testing.T) {
 	cases := []struct {
 		rrule string
-		days  map[int]struct{}
+		days  []int
 	}{
 		{
 			rrule: "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO",
-			days: map[int]struct{}{
-				1: {},
+			days: []int{
+				1,
 			},
 		},
 		{
 			rrule: "INTERVAL=1;FREQ=WEEKLY;BYDAY=MO,WE,FR",
-			days: map[int]struct{}{
-				1: {},
-				3: {},
-				5: {},
+			days: []int{
+				1,
+				3,
+				5,
 			},
 		},
 		{
 			rrule: "BYDAY=SA,SU;FREQ=WEEKLY;INTERVAL=1",
-			days: map[int]struct{}{
-				0: {},
-				6: {},
+			days: []int{
+				6,
+				0,
 			},
 		},
 		{
 			rrule: "BYDAY=SU;INTERVAL=2;FREQ=WEEKLY",
-			days: map[int]struct{}{
-				0: {},
+			days: []int{
+				0,
 			},
 		},
 		{
 			rrule: "FREQ=WEEKLY;BYDAY=TU,TH;INTERVAL=1",
-			days: map[int]struct{}{
-				2: {},
-				4: {},
+			days: []int{
+				2,
+				4,
 			},
 		},
 		{
 			rrule: "INTERVAL=1;BYDAY=TU,TH;FREQ=WEEKLY",
-			days: map[int]struct{}{
-				2: {},
-				4: {},
+			days: []int{
+				2,
+				4,
 			},
 		},
 		{
 			rrule: "INTERVAL=1;BYDAY=;FREQ=WEEKLY",
-			days:  map[int]struct{}{},
+			days:  []int{},
 		},
 		{
 			rrule: "INTERVAL=1;BYDAY=",
-			days:  map[int]struct{}{},
+			days:  []int{},
 		},
 		{
 			rrule: "BYDAY=;FREQ=WEEKLY",
-			days:  map[int]struct{}{},
+			days:  []int{},
 		},
 		{
 			rrule: "BYDAY=;",
-			days:  map[int]struct{}{},
+			days:  []int{},
 		},
 		{
 			rrule: "FREQ=WEEKLY;INTERVAL=1;BYDAY=Mo,wE,fr",
-			days: map[int]struct{}{
-				1: {},
-				3: {},
-				5: {},
+			days: []int{
+				1,
+				3,
+				5,
 			},
 		},
 		{
-			rrule: "INTERVAL=1;FREQ=WEEKLY;BYDAY=MO,WE,FE",
-			days: map[int]struct{}{
-				1: {},
-				3: {},
+			rrule: "INTERVAL=1;FREQ=WEEKLY;BYDAY=MO,WE,FE", // MO,WE
+			days: []int{
+				1,
+				3,
 			},
 		},
 		{
 			rrule: "INTERVAL=1;FREQ=WEEKLY;BYDAY=FR,WE,MO",
-			days: map[int]struct{}{
-				1: {},
-				3: {},
-				5: {},
+			days: []int{
+				5,
+				3,
+				1,
 			},
 		},
 	}
@@ -178,20 +178,20 @@ func TestCreateSchedules(t *testing.T) {
 			Gap:  40,
 			// 22:40, 23:40, 00:40,
 			Days:  []int{1, 2, 3},
-			Dates: []int64{newStamp(2025, 1, 8, 0)},
+			Dates: []int64{newSlot(2025, 1, 8, 0)},
 
 			Schedules: []Schedule{
 				{
 					From:  "22:40",
 					To:    "24:40",
 					Days:  []int{1, 2, 3},
-					Dates: []int64{newStamp(2025, 1, 8, 0)},
+					Dates: []int64{newSlot(2025, 1, 8, 0)},
 				},
 				{
 					From:  "00:40",
 					To:    "01:00",
 					Days:  []int{2, 3, 4},
-					Dates: []int64{newStamp(2025, 1, 9, 0)},
+					Dates: []int64{newSlot(2025, 1, 9, 0)},
 				},
 			},
 		},
@@ -202,8 +202,8 @@ func TestCreateSchedules(t *testing.T) {
 			Gap:  35,
 			Days: []int{4, 5, 6},
 			Dates: []int64{
-				newStamp(2025, 1, 8, 0),
-				newStamp(2025, 1, 10, 0),
+				newSlot(2025, 1, 8, 0),
+				newSlot(2025, 1, 10, 0),
 			},
 
 			Schedules: []Schedule{
@@ -212,8 +212,8 @@ func TestCreateSchedules(t *testing.T) {
 					To:   "24:50",
 					Days: []int{4, 5, 6},
 					Dates: []int64{
-						newStamp(2025, 1, 8, 0),
-						newStamp(2025, 1, 10, 0),
+						newSlot(2025, 1, 8, 0),
+						newSlot(2025, 1, 10, 0),
 					},
 				},
 			},
@@ -225,8 +225,8 @@ func TestCreateSchedules(t *testing.T) {
 			Gap:  40,
 			Days: []int{4, 5, 6},
 			Dates: []int64{
-				newStamp(2025, 1, 8, 0),
-				newStamp(2025, 1, 9, 0),
+				newSlot(2025, 1, 8, 0),
+				newSlot(2025, 1, 9, 0),
 			},
 
 			Schedules: []Schedule{
@@ -235,8 +235,8 @@ func TestCreateSchedules(t *testing.T) {
 					To:   "24:00",
 					Days: []int{4, 5, 6},
 					Dates: []int64{
-						newStamp(2025, 1, 8, 0),
-						newStamp(2025, 1, 9, 0),
+						newSlot(2025, 1, 8, 0),
+						newSlot(2025, 1, 9, 0),
 					},
 				},
 				{
@@ -244,8 +244,8 @@ func TestCreateSchedules(t *testing.T) {
 					To:   "01:00",
 					Days: []int{5, 6, 0},
 					Dates: []int64{
-						newStamp(2025, 1, 9, 0),
-						newStamp(2025, 1, 10, 0),
+						newSlot(2025, 1, 9, 0),
+						newSlot(2025, 1, 10, 0),
 					},
 				},
 			},
@@ -257,18 +257,28 @@ func TestCreateSchedules(t *testing.T) {
 			Gap:  40,
 			Days: []int{4, 5, 6},
 			Dates: []int64{
-				newStamp(2025, 1, 8, 0),
-				newStamp(2025, 1, 9, 0),
+				newSlot(2025, 1, 8, 0),
+				newSlot(2025, 1, 9, 0),
 			},
 
-			Schedules: []Schedule{},
+			Schedules: []Schedule{
+				{
+					From: "23:40",
+					To:   "24:10",
+					Days: []int{4, 5, 6},
+					Dates: []int64{
+						newSlot(2025, 1, 8, 0),
+						newSlot(2025, 1, 9, 0),
+					},
+				},
+			},
 		},
 	}
 
-	for _, c := range cases {
+	for i, c := range cases {
 		schedules := createSchedules(c.From, c.To, c.Size, c.Gap, c.Days, c.Dates)
 		if len(c.Schedules) != len(schedules) {
-			t.Fatal("len()", schedules)
+			t.Fatal("len()", i, c.Schedules, schedules)
 		}
 
 		for i, schedule := range schedules {
