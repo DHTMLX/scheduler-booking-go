@@ -198,46 +198,29 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 			}
 		}
 
+		// recurring events
 		for _, recSch := range recurring {
 			rec := recSch.DoctorRecurringRoutine
 
-			days := daysFromRules(rec.Rrule)
-			weekDate := time.UnixMilli(rec.Date).UTC().Truncate(oneWeek).UnixMilli() // beginning of the week
+			recID := strconv.Itoa(recSch.ID)
+			recDays := daysFromRules(rec.Rrule)
+
+			// slots
+			booked := getRecBookedSlots(slotsDays, recDays, rec.Date, recSch.From, recSch.To, doctor.SlotSize, doctor.Gap, empty[recID], replace)
+			for _, slot := range booked {
+				bookedSlots[slot] = struct{}{}
+			}
 
 			// create schedules
-			deleted := empty[recSch.ID]
-			newSchedules := createSchedules(recSch.From, recSch.To, doctor.SlotSize, doctor.Gap, days, nil)
-			for i, sch := range newSchedules {
-				dates := make(map[int64]struct{}) // duplication of routines events
-
-				for _, day := range sch.Days {
-					for _, date := range takenWeek[day] {
-						if weekDate <= date {
-							if _, ok := deleted[getStartDate(date, recSch.From*(1-i))]; !ok {
-								dates[date] = struct{}{}
-							}
-						}
-					}
-				}
-
-				addDates := make([]int64, 0, len(dates))
-				for date := range dates {
-					addDates = append(addDates, date)
-				}
-
-				emptyDates := make([]int64, 0, len(deleted))
-				for date := range deleted {
-					emptyDate := time.UnixMilli(date).UTC()
-					from := emptyDate.Hour()*60 + emptyDate.Minute()
-					if recSch.From*(1-i) == from {
-						emptyDates = append(emptyDates, date)
-					}
-				}
-
-				sch.Dates = addDates // additional for recurring
+			deleted := empty[recID]
+			newSchedules := createSchedules(recSch.From, recSch.To, doctor.SlotSize, doctor.Gap, recDays, nil)
+			for j, sch := range newSchedules {
+				// additional for recurring
+				sch.Dates = additionalDates(sch.Days, weekDates, deleted, recSch.From*(1-j))
 				schedules = append(schedules, sch)
 
 				// empty for recurring
+				emptyDates := emptyDates(deleted, activeDates, recSch.From*(1-j))
 				if len(emptyDates) > 0 {
 					emptySch := Schedule{
 						From:  sch.From,
@@ -272,6 +255,40 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 	}
 
 	return units
+}
+
+func additionalDates(days []int, takenWeek map[int][]int64, deleted map[int64]struct{}, from int) []int64 {
+	dates := make(map[int64]struct{}) // duplication of routines events
+
+	for _, day := range days {
+		for _, date := range takenWeek[day] {
+			if _, ok := deleted[newStamp(date, from)]; !ok {
+				dates[date] = struct{}{}
+			}
+		}
+	}
+
+	addDates := make([]int64, 0, len(dates))
+	for date := range dates {
+		addDates = append(addDates, date)
+	}
+
+	return addDates
+}
+
+func emptyDates(deleted, datesOnly map[int64]struct{}, from int) []int64 {
+	emptyDates := make([]int64, 0, len(deleted))
+	for date := range deleted {
+		emptyDate := time.UnixMilli(date).UTC()
+		emptyFrom := emptyDate.Hour()*60 + emptyDate.Minute()
+		onlyDate := newStamp(date, -emptyFrom)
+
+		if _, ok := datesOnly[onlyDate]; !ok && from == emptyFrom {
+			emptyDates = append(emptyDates, onlyDate)
+		}
+	}
+
+	return emptyDates
 }
 
 func daysFromRules(rrule string) []int {
