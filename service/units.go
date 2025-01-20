@@ -166,29 +166,33 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 			}
 		}
 
-		takenWeek := make(map[int][]int64, 7)
+		weekDates := make(map[int][]int64, 7)   // dates by days of the week
+		activeDates := make(map[int64]struct{}) // dates without empty
+
+		// routine events
 		for _, routSch := range routines {
 			rout := routSch.DoctorRoutine
-			recID, _ := strconv.Atoi(rout.RecurringEventID)
 
 			// slots
-			booked := getBookedSlots(slotsDates, rout.Date, routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, replace)
-			for _, slot := range booked {
-				bookedSlots[slot] = struct{}{}
+			if !rout.Deleted {
+				booked := getRoutBookedSlots(slotsDates, rout.Date, routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, replace)
+				for _, slot := range booked {
+					bookedSlots[slot] = struct{}{}
+				}
 			}
 
 			// create schedules
 			newSchedules := createSchedules(routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, nil, []int64{rout.Date})
-			for i, sch := range newSchedules {
-				dateMilli := sch.Dates[0]
-				date := time.UnixMilli(dateMilli).UTC()
+			for j, sch := range newSchedules {
+				date := sch.Dates[0]
 
-				weekDay := int(date.Weekday())
-				takenWeek[weekDay] = append(takenWeek[weekDay], dateMilli)
+				weekDay := int(time.UnixMilli(date).UTC().Weekday())
+				weekDates[weekDay] = append(weekDates[weekDay], date)
 
 				if rout.Deleted {
 					empty[rout.RecurringEventID][newStamp(date, routSch.From*(1-j))] = struct{}{}
 				} else {
+					activeDates[date] = struct{}{}
 					schedules = append(schedules, sch)
 				}
 			}
