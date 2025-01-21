@@ -328,49 +328,40 @@ func createSchedules(from, to, size, gap int, days []int, dates []int64) []Sched
 		median = allDay + (segment-rem)%segment
 	}
 
-	sch := newSchedule(from, median, size, gap, days, dates)
-	schedules = append(schedules, *sch)
+// booked slots
 
-	if median+size <= to {
-		newDays := make([]int, len(days))
-		newDates := make([]int64, len(dates))
-
-		for i, day := range days {
-			newDays[i] = (day + 1) % 7
-		}
-
-		for i, date := range dates {
-			newDates[i] = date + allDayMilli
-		}
-
-		sch := newSchedule(median-allDay, to-allDay, size, gap, newDays, newDates)
-		schedules = append(schedules, *sch)
-	}
-
-	return schedules
-}
-
-// year, month, day, min
-func newSlot(y int, m time.Month, d, min int) int64 {
-	return time.Date(y, m, d, 0, min, 0, 0, time.UTC).UnixMilli()
-}
-
-// new stamp from date and from
-func getStartDate(date int64, from int) int64 {
-	return date + int64(from*minuteMilli)
-}
-
-func getBookedSlots(slots map[int64][]time.Time, date int64, from, to, size, gap int, replace bool) []int64 {
+func getRoutBookedSlots(slots map[int64][]time.Time, date int64, from, to, size, gap int, replace bool) []int64 {
 	if from+size > to {
 		return []int64{}
 	}
 
-	current := time.UnixMilli(date).UTC()
-	y, m, d := current.Date()
-
 	slotsDate := slots[date-allDayMilli]                      // prev day
 	slotsDate = append(slotsDate, slots[date]...)             // current
 	slotsDate = append(slotsDate, slots[date+allDayMilli]...) // next day
+
+	return getBookedSlots(slotsDate, 0, date, from, to, size, gap, nil, replace)
+}
+
+func getRecBookedSlots(slots map[int][]time.Time, days []int, date int64, from, to, size, gap int, exts map[int64]struct{}, replace bool) []int64 {
+	if from+size > to {
+		return []int64{}
+	}
+
+	bookedSlots := []int64{}
+	for _, day := range days {
+		slotsDate := slots[(day+6)%7]                      // prev day
+		slotsDate = append(slotsDate, slots[day]...)       // current
+		slotsDate = append(slotsDate, slots[(day+1)%7]...) // next day
+
+		bookedSlots = append(bookedSlots, getBookedSlots(slotsDate, day, date, from, to, size, gap, exts, replace)...)
+	}
+
+	return bookedSlots
+}
+
+func getBookedSlots(slots []time.Time, day int, date int64, from, to, size, gap int, exts map[int64]struct{}, replace bool) []int64 {
+	current := time.UnixMilli(date).UTC()
+	currentDate := date
 
 	segment := size + gap
 	newTo := to - (to-from)%segment
@@ -378,12 +369,20 @@ func getBookedSlots(slots map[int64][]time.Time, date int64, from, to, size, gap
 		newTo += segment
 	}
 
-	bookedSlots := make([]int64, 0, len(slotsDate)*2)
-	for _, slot := range slotsDate {
+	var ok bool
+	bookedSlots := make([]int64, 0, len(slots))
+	for _, slot := range slots {
+		if exts != nil {
+			current, currentDate, ok = checkEmpty(day, from, slot, exts)
+			if ok {
+				continue
+			}
+		}
+
 		ts := int(slot.Sub(current).Minutes())
 		if !replace {
 			if from <= ts && ts+size <= to {
-				bookedSlots = append(bookedSlots, newSlot(y, m, d, ts))
+				bookedSlots = append(bookedSlots, newStamp(currentDate, ts))
 			}
 			continue
 		}
@@ -392,13 +391,13 @@ func getBookedSlots(slots map[int64][]time.Time, date int64, from, to, size, gap
 
 		before := ts - rem
 		if from < before+segment && before < newTo {
-			bookedSlots = append(bookedSlots, newSlot(y, m, d, before))
+			bookedSlots = append(bookedSlots, newStamp(currentDate, before))
 		}
 
 		if rem != 0 {
 			after := ts + segment - rem
 			if from < after+segment && after < newTo {
-				bookedSlots = append(bookedSlots, newSlot(y, m, d, after))
+				bookedSlots = append(bookedSlots, newStamp(currentDate, after))
 			}
 		}
 	}
@@ -406,12 +405,12 @@ func getBookedSlots(slots map[int64][]time.Time, date int64, from, to, size, gap
 	return bookedSlots
 }
 
-func getRecBookedSlots(slots map[int][]time.Time, day int, date time.Time, from, to, size, gap int, exts map[int64]struct{}, replace bool) []int64 {
-	// slotsDate := slots[day]
+func newStamp(date int64, from int) int64 {
+	return date + int64(from*minuteMilli)
+}
 
-	slotsDate := slots[(day+6)%7]                      // prev day
-	slotsDate = append(slotsDate, slots[day]...)       // current
-	slotsDate = append(slotsDate, slots[(day+1)%7]...) // next day
+func checkEmpty(day, from int, slot time.Time, exts map[int64]struct{}) (time.Time, int64, bool) {
+	diff := day - int(slot.Weekday())
 
 	segment := size + gap
 	newTo := to - (to-from)%segment
