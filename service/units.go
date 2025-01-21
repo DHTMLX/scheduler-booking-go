@@ -29,6 +29,7 @@ type Unit struct {
 	UsedSlots      []int64    `json:"usedSlots,omitempty"`
 }
 
+// booking schedule
 type Schedule struct {
 	From  string  `json:"from"`
 	To    string  `json:"to"`
@@ -72,8 +73,7 @@ func (s *unitsService) GetAll() ([]Unit, error) {
 		return nil, err
 	}
 
-	units := createUnits(doctors, true)
-	return units, nil
+	return createUnits(doctors, true), nil
 }
 
 func createUnits(doctors []data.Doctor, replace bool) []Unit {
@@ -129,6 +129,7 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 
 					original, err := time.Parse("2006-01-02 15:04", ext.OriginalStart)
 					if err != nil {
+						log.Printf("ERROR: failed to parse original start time: %v", err)
 						continue
 					}
 
@@ -142,8 +143,10 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 									routines = append(routines, extSch)
 								}
 
+								origDate := original.Truncate(oneDay).UnixMilli()
+
 								// deleted
-								emptySch := createEmpty(recSch.From, recSch.To, newStamp(original.UnixMilli(), -origFrom), recID)
+								emptySch := createEmpty(recSch.From, recSch.To, origDate, recID)
 								routines = append(routines, *emptySch)
 								break
 							}
@@ -151,9 +154,9 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 					}
 				}
 
+				// empty schedules
 				recDate := time.UnixMilli(rec.Date).UTC()
 				for _, day := range recDays {
-					// empty schedules
 					offset := (7 + day - tWeekDay) % 7
 					for date := today.AddDate(0, 0, offset); date.Before(recDate); date = date.AddDate(0, 0, 7) {
 						// deleted
@@ -167,13 +170,13 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 		}
 
 		weekDates := make(map[int][]int64, 7)   // dates by days of the week
-		activeDates := make(map[int64]struct{}) // dates without empty
+		activeDates := make(map[int64]struct{}) // dates without deleted
 
 		// routine events
 		for _, routSch := range routines {
 			rout := routSch.DoctorRoutine
 
-			// slots
+			// booked slots
 			if !rout.Deleted {
 				booked := getRoutBookedSlots(slotsDates, rout.Date, routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, replace)
 				for _, slot := range booked {
@@ -205,7 +208,7 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 			recID := strconv.Itoa(recSch.ID)
 			recDays := daysFromRules(rec.Rrule)
 
-			// slots
+			// booked slots
 			booked := getRecBookedSlots(slotsDays, recDays, rec.Date, recSch.From, recSch.To, doctor.SlotSize, doctor.Gap, empty[recID], replace)
 			for _, slot := range booked {
 				bookedSlots[slot] = struct{}{}
