@@ -161,6 +161,7 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 			// booked slots
 			if !rout.Deleted {
 				booked := getRoutBookedSlots(slotsDates, rout.Date, routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, replace)
+				// booked := getBookedSlots(slotsDates, nil, nil, rout.Date, routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, nil, replace)
 				for _, slot := range booked {
 					bookedSlots[slot] = struct{}{}
 				}
@@ -279,78 +280,104 @@ func createEmpty(from, to int, date int64, recID string) *data.DoctorSchedule {
 // booked slots
 
 func getRoutBookedSlots(slots map[int64][]time.Time, date int64, from, to, size, gap int, replace bool) []int64 {
-	if from+size > to {
-		return []int64{}
-	}
-
-	slotsDate := slots[date-allDayMilli]                      // prev day
-	slotsDate = append(slotsDate, slots[date]...)             // current
-	slotsDate = append(slotsDate, slots[date+allDayMilli]...) // next day
-
-	return getBookedSlots(slotsDate, 0, date, from, to, size, gap, nil, replace)
+	return getBookedSlots(slots, nil, nil, date, from, to, size, gap, nil, replace)
 }
 
 func getRecBookedSlots(slots map[int][]time.Time, days []int, date int64, from, to, size, gap int, exts map[int64]struct{}, replace bool) []int64 {
+	return getBookedSlots(nil, slots, days, date, from, to, size, gap, exts, replace)
+}
+
+func getBookedSlots(slotsDates map[int64][]time.Time, slotsDays map[int][]time.Time, days []int, date int64, from, to, size, gap int, exts map[int64]struct{}, replace bool) []int64 {
 	if from+size > to {
 		return []int64{}
 	}
 
-	bookedSlots := []int64{}
-	for _, day := range days {
-		slotsDate := slots[(day+6)%7]                      // prev day
-		slotsDate = append(slotsDate, slots[day]...)       // current
-		slotsDate = append(slotsDate, slots[(day+1)%7]...) // next day
-
-		bookedSlots = append(bookedSlots, getBookedSlots(slotsDate, day, date, from, to, size, gap, exts, replace)...)
-	}
-
-	return bookedSlots
-}
-
-func getBookedSlots(slots []time.Time, day int, date int64, from, to, size, gap int, exts map[int64]struct{}, replace bool) []int64 {
 	current := time.UnixMilli(date).UTC()
 	currentDate := date
 
 	segment := size + gap
 	newTo := to - (to-from)%segment
+
 	if newTo+size <= to {
 		newTo += segment
 	}
 
+	prev := from-segment < 0 // prev day
+	next := newTo > allDay   // next day
+
 	var ok bool
-	bookedSlots := make([]int64, 0, len(slots))
-	for _, slot := range slots {
-		if exts != nil {
-			current, currentDate, ok = checkExtension(day, from, slot, exts)
-			if ok {
+	bookedSlots := make([]int64, 0, len(slotsDates))
+
+	if len(days) == 0 {
+		days = []int{0}
+	}
+
+	for _, day := range days {
+		slots := getSlots(slotsDates, slotsDays, day, date, prev, next)
+		for _, slot := range slots {
+			if exts != nil {
+				current, currentDate, ok = checkExtension(day, from, slot, exts)
+				if ok {
+					continue
+				}
+			}
+
+			ts := int(slot.Sub(current).Minutes())
+			if !replace {
+				// for client reservation
+				if from <= ts && ts+size <= to {
+					bookedSlots = append(bookedSlots, newStamp(currentDate, ts))
+				}
 				continue
 			}
-		}
 
-		ts := int(slot.Sub(current).Minutes())
-		if !replace {
-			if from <= ts && ts+size <= to {
-				bookedSlots = append(bookedSlots, newStamp(currentDate, ts))
+			// for booking
+			rem := (segment + (ts-from)%segment) % segment
+
+			before := ts - rem
+			if from < before+segment && before < newTo {
+				bookedSlots = append(bookedSlots, newStamp(currentDate, before))
 			}
-			continue
-		}
 
-		rem := (segment + (ts-from)%segment) % segment
-
-		before := ts - rem
-		if from < before+segment && before < newTo {
-			bookedSlots = append(bookedSlots, newStamp(currentDate, before))
-		}
-
-		if rem != 0 {
-			after := ts + segment - rem
-			if from < after+segment && after < newTo {
-				bookedSlots = append(bookedSlots, newStamp(currentDate, after))
+			if rem != 0 {
+				after := ts + segment - rem
+				if from < after+segment && after < newTo {
+					bookedSlots = append(bookedSlots, newStamp(currentDate, after))
+				}
 			}
 		}
 	}
 
 	return bookedSlots
+}
+
+func getSlots(slotsDates map[int64][]time.Time, slotsDays map[int][]time.Time, day int, date int64, prev, next bool) []time.Time {
+	if len(slotsDates) > 0 {
+		slots := slotsDates[date]
+		if prev {
+			slots = append(slots, slotsDates[date-allDayMilli]...)
+		}
+		if next {
+			slots = append(slots, slotsDates[date+allDayMilli]...)
+		}
+
+		return slots
+	}
+
+	if len(slotsDays) > 0 {
+		slots := slotsDays[day]
+		if prev {
+			slots = append(slots, slotsDays[(day+6)%7]...)
+		}
+		if next {
+			slots = append(slots, slotsDays[(day+1)%7]...)
+		}
+
+		log.Print(slots)
+		return slots
+	}
+
+	return nil
 }
 
 func newStamp(date int64, from int) int64 {
