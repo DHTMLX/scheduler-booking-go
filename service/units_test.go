@@ -2,68 +2,10 @@ package service
 
 import (
 	"reflect"
+	"scheduler-booking/common"
 	"testing"
 	"time"
 )
-
-func Test_m2t(t *testing.T) {
-	cases := []struct {
-		minutes       int
-		expectedHours string
-	}{
-		{
-			minutes:       15,
-			expectedHours: "00:15",
-		},
-		{
-			minutes:       30,
-			expectedHours: "00:30",
-		},
-		{
-			minutes:       60,
-			expectedHours: "01:00",
-		},
-		{
-			minutes:       90,
-			expectedHours: "01:30",
-		},
-		{
-			minutes:       135,
-			expectedHours: "02:15",
-		},
-		{
-			minutes:       545,
-			expectedHours: "09:05",
-		},
-		{
-			minutes:       875,
-			expectedHours: "14:35",
-		},
-		{
-			minutes:       1020,
-			expectedHours: "17:00",
-		},
-		{
-			minutes:       1260,
-			expectedHours: "21:00",
-		},
-		{
-			minutes:       1440,
-			expectedHours: "24:00",
-		},
-		{
-			minutes:       1480,
-			expectedHours: "24:40",
-		},
-	}
-
-	for _, c := range cases {
-		hours := m2t(c.minutes)
-		if hours != c.expectedHours {
-			t.Fatalf("expected %s, got %s", c.expectedHours, hours)
-		}
-	}
-}
 
 func TestDaysFromRules(t *testing.T) {
 	cases := []struct {
@@ -182,14 +124,14 @@ func TestCreateSchedules(t *testing.T) {
 
 			Schedules: []Schedule{
 				{
-					From:  "22:40",
-					To:    "24:40",
+					From:  common.NewJTime(22*60 + 40), // 22:40
+					To:    common.NewJTime(24*60 + 40), // 24:40
 					Days:  []int{1, 2, 3},
 					Dates: []int64{time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC).UnixMilli()},
 				},
 				{
-					From:  "00:40",
-					To:    "01:00",
+					From:  common.NewJTime(40),     // 00:40
+					To:    common.NewJTime(1 * 60), // 01:00
 					Days:  []int{2, 3, 4},
 					Dates: []int64{time.Date(2025, 1, 9, 0, 0, 0, 0, time.UTC).UnixMilli()},
 				},
@@ -208,8 +150,8 @@ func TestCreateSchedules(t *testing.T) {
 
 			Schedules: []Schedule{
 				{
-					From: "21:35",
-					To:   "24:50",
+					From: common.NewJTime(21*60 + 35), // 21:35
+					To:   common.NewJTime(24*60 + 50), // 24:50
 					Days: []int{4, 5, 6},
 					Dates: []int64{
 						time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -231,8 +173,8 @@ func TestCreateSchedules(t *testing.T) {
 
 			Schedules: []Schedule{
 				{
-					From: "22:40",
-					To:   "24:00",
+					From: common.NewJTime(22*60 + 40), // 22:40
+					To:   common.NewJTime(24 * 60),    // 24:00
 					Days: []int{4, 5, 6},
 					Dates: []int64{
 						time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -240,8 +182,8 @@ func TestCreateSchedules(t *testing.T) {
 					},
 				},
 				{
-					From: "00:00",
-					To:   "01:00",
+					From: common.NewJTime(0),       // 00:00
+					To:   common.NewJTime(01 * 60), // 01:00
 					Days: []int{5, 6, 0},
 					Dates: []int64{
 						time.Date(2025, 1, 9, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -263,8 +205,8 @@ func TestCreateSchedules(t *testing.T) {
 
 			Schedules: []Schedule{
 				{
-					From: "23:40",
-					To:   "24:10",
+					From: common.NewJTime(23*60 + 40), // 23:40
+					To:   common.NewJTime(24*60 + 10), // 24:10
 					Days: []int{4, 5, 6},
 					Dates: []int64{
 						time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -282,8 +224,8 @@ func TestCreateSchedules(t *testing.T) {
 		}
 
 		for i, schedule := range schedules {
-			if c.Schedules[i].From != schedule.From ||
-				c.Schedules[i].To != schedule.To ||
+			if c.Schedules[i].From.Get() != schedule.From.Get() ||
+				c.Schedules[i].To.Get() != schedule.To.Get() ||
 				!reflect.DeepEqual(c.Schedules[i].Days, schedule.Days) ||
 				!reflect.DeepEqual(c.Schedules[i].Dates, schedule.Dates) {
 				t.Fatalf("expected: %+v\ngot: %+v", c.Schedules[i], schedule)

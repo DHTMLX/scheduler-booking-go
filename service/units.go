@@ -1,9 +1,9 @@
 package service
 
 import (
-	"fmt"
 	"log"
 	"regexp"
+	"scheduler-booking/common"
 	"scheduler-booking/data"
 	"strconv"
 	"strings"
@@ -31,12 +31,12 @@ type Unit struct {
 
 // booking schedule
 type Schedule struct {
-	From  string  `json:"from"`
-	To    string  `json:"to"`
-	Size  int     `json:"size"`
-	Gap   int     `json:"gap"`
-	Days  []int   `json:"days,omitempty"`
-	Dates []int64 `json:"dates,omitempty"`
+	From  common.JTime `json:"from"`
+	To    common.JTime `json:"to"`
+	Size  int          `json:"size"`
+	Gap   int          `json:"gap"`
+	Days  []int        `json:"days,omitempty"`
+	Dates []int64      `json:"dates,omitempty"`
 }
 
 const (
@@ -169,14 +169,14 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 
 			// create schedules
 			newSchedules := createSchedules(routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, nil, []int64{rout.Date})
-			for j, sch := range newSchedules {
+			for _, sch := range newSchedules {
 				date := sch.Dates[0]
 
 				weekDay := int(time.UnixMilli(date).UTC().Weekday())
 				weekDates[weekDay] = append(weekDates[weekDay], date)
 
 				if rout.Deleted {
-					empty[rout.RecurringEventID][newStamp(date, routSch.From*(1-j))] = struct{}{}
+					empty[rout.RecurringEventID][newStamp(date, sch.From.Get())] = struct{}{}
 				} else {
 					activeDates[date] = struct{}{}
 					schedules = append(schedules, sch)
@@ -200,13 +200,13 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 			// create schedules
 			deleted := empty[recID]
 			newSchedules := createSchedules(recSch.From, recSch.To, doctor.SlotSize, doctor.Gap, recDays, nil)
-			for j, sch := range newSchedules {
+			for _, sch := range newSchedules {
 				// additional for recurring
-				sch.Dates = additionalDates(sch.Days, weekDates, deleted, recSch.From*(1-j))
+				sch.Dates = additionalDates(sch.Days, weekDates, deleted, sch.From.Get())
 				schedules = append(schedules, sch)
 
 				// empty for recurring
-				emptyDates := emptyDates(deleted, activeDates, recSch.From*(1-j))
+				emptyDates := emptyDates(deleted, activeDates, sch.From.Get())
 				if len(emptyDates) > 0 {
 					emptySch := Schedule{
 						From:  sch.From,
@@ -435,19 +435,13 @@ func createSchedules(from, to, size, gap int, days []int, dates []int64) []Sched
 
 func newSchedule(from, to, size, gap int, days []int, dates []int64) *Schedule {
 	return &Schedule{
-		From:  m2t(from),
-		To:    m2t(to),
+		From:  common.NewJTime(from),
+		To:    common.NewJTime(to),
 		Size:  size,
 		Gap:   gap,
 		Days:  days,
 		Dates: dates,
 	}
-}
-
-func m2t(m int) string {
-	hours := m / 60
-	minutes := m % 60
-	return fmt.Sprintf("%02d:%02d", hours, minutes)
 }
 
 // helper dates for recurring event
