@@ -14,7 +14,7 @@ Returns all neccessary information to build booking dataset. Using `slots + used
 
 #### Response example
 
-```json
+```js
 {
   "id": 1,
   "title": "Dr. Conrad Hubbard",
@@ -53,7 +53,7 @@ Returns a list of doctors (without images)
 
 #### Response example
 
-```json
+```js
 [
   {
     "id": 1,
@@ -76,7 +76,7 @@ You can show this data on Doctors view in Booking-Scheduler Demo
 
 #### Response exapmle
 
-```json
+```js
 [
   {
     "id": 1,
@@ -114,7 +114,7 @@ Creates a new doctor's schedule with concrete date (Doctors view)
 
 #### Body
 
-```json
+```js
 {
   "doctor_id": 1,
   "end_date": "2024-10-31 10:30",
@@ -126,7 +126,7 @@ Creates a new doctor's schedule with recurring date (Doctors view)
 
 #### Body
 
-```json
+```js
 {
   "doctor_id": 1,
   "end_date": "2024-10-28 10:30",
@@ -140,7 +140,7 @@ Creates a new doctor's schedule with recurring date (Doctors view)
 
 Returns an id of created schedule (Doctors view)
 
-```json
+```js
 {
   "id": 10
 }
@@ -152,7 +152,7 @@ Updates doctor's schedule
 
 #### Body
 
-```json
+```js
 {
   "doctor_id": 1,
   "end_date": "2024-10-31 12:20",
@@ -164,7 +164,7 @@ Updates recurring doctor's schedule
 
 #### Body
 
-```json
+```js
 {
   "doctor_id": 1,
   "end_date": "2024-10-31 10:30",
@@ -178,7 +178,7 @@ Updates recurring doctor's schedule
 
 Returns an id of updated schedule (Doctors view)
 
-```json
+```js
 {
   "id": 10
 }
@@ -202,7 +202,7 @@ Returns all occupied slots (Clients view)
 
 #### Response example
 
-```json
+```js
 [
     {
         "id": 1,
@@ -230,7 +230,7 @@ Creates reservation (Booking view)
 
 #### Body
 
-```json
+```js
 {
   "doctor": 2,
   "date": 1730289600000,
