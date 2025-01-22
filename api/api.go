@@ -46,7 +46,16 @@ func (api *API) InitRoutes(r chi.Router) {
 			return
 		}
 		id, err := api.sAll.Worktime.Add(worktime)
-		api.response(w, &response{id}, err)
+
+		action := "inserted"
+		if worktime.Deleted {
+			action = "deleted"
+		}
+
+		api.response(w, &response{
+			Action: action,
+			ID:     id,
+		}, err)
 	})
 
 	r.Put("/doctors/worktime/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -59,13 +68,13 @@ func (api *API) InitRoutes(r chi.Router) {
 		}
 		err = api.sAll.Worktime.UpdateDateSchedule(id, worktime)
 
-		api.response(w, &response{id}, err)
+		api.response(w, &response{Action: "updated"}, err)
 	})
 
 	r.Delete("/doctors/worktime/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id := numberParam(r, "id")
 		err := api.sAll.Worktime.Delete(id)
-		api.response(w, &response{id}, err)
+		api.response(w, &response{Action: "deleted"}, err)
 	})
 
 	r.Get("/doctors/reservations", func(w http.ResponseWriter, r *http.Request) {
@@ -82,13 +91,13 @@ func (api *API) InitRoutes(r chi.Router) {
 		}
 		id, err := api.sAll.Reservations.Add(reservation)
 
-		api.response(w, &response{id}, err)
+		api.response(w, &response{ID: id}, err)
 	})
 
 	r.Delete("/doctors/reservations/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id := numberParam(r, "id")
 		err := api.sAll.Reservations.Delete(id)
-		api.response(w, &response{id}, err)
+		api.response(w, &response{ID: id}, err)
 	})
 }
 
