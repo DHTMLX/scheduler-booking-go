@@ -178,20 +178,20 @@ func TestCreateSchedules(t *testing.T) {
 			Gap:  40,
 			// 22:40, 23:40, 00:40,
 			Days:  []int{1, 2, 3},
-			Dates: []int64{newSlot(2025, 1, 8, 0)},
+			Dates: []int64{time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC).UnixMilli()},
 
 			Schedules: []Schedule{
 				{
 					From:  "22:40",
 					To:    "24:40",
 					Days:  []int{1, 2, 3},
-					Dates: []int64{newSlot(2025, 1, 8, 0)},
+					Dates: []int64{time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC).UnixMilli()},
 				},
 				{
 					From:  "00:40",
 					To:    "01:00",
 					Days:  []int{2, 3, 4},
-					Dates: []int64{newSlot(2025, 1, 9, 0)},
+					Dates: []int64{time.Date(2025, 1, 9, 0, 0, 0, 0, time.UTC).UnixMilli()},
 				},
 			},
 		},
@@ -202,8 +202,8 @@ func TestCreateSchedules(t *testing.T) {
 			Gap:  35,
 			Days: []int{4, 5, 6},
 			Dates: []int64{
-				newSlot(2025, 1, 8, 0),
-				newSlot(2025, 1, 10, 0),
+				time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC).UnixMilli(),
+				time.Date(2025, 1, 10, 0, 0, 0, 0, time.UTC).UnixMilli(),
 			},
 
 			Schedules: []Schedule{
@@ -212,8 +212,8 @@ func TestCreateSchedules(t *testing.T) {
 					To:   "24:50",
 					Days: []int{4, 5, 6},
 					Dates: []int64{
-						newSlot(2025, 1, 8, 0),
-						newSlot(2025, 1, 10, 0),
+						time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC).UnixMilli(),
+						time.Date(2025, 1, 10, 0, 0, 0, 0, time.UTC).UnixMilli(),
 					},
 				},
 			},
@@ -225,8 +225,8 @@ func TestCreateSchedules(t *testing.T) {
 			Gap:  40,
 			Days: []int{4, 5, 6},
 			Dates: []int64{
-				newSlot(2025, 1, 8, 0),
-				newSlot(2025, 1, 9, 0),
+				time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC).UnixMilli(),
+				time.Date(2025, 1, 9, 0, 0, 0, 0, time.UTC).UnixMilli(),
 			},
 
 			Schedules: []Schedule{
@@ -235,8 +235,8 @@ func TestCreateSchedules(t *testing.T) {
 					To:   "24:00",
 					Days: []int{4, 5, 6},
 					Dates: []int64{
-						newSlot(2025, 1, 8, 0),
-						newSlot(2025, 1, 9, 0),
+						time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC).UnixMilli(),
+						time.Date(2025, 1, 9, 0, 0, 0, 0, time.UTC).UnixMilli(),
 					},
 				},
 				{
@@ -244,8 +244,8 @@ func TestCreateSchedules(t *testing.T) {
 					To:   "01:00",
 					Days: []int{5, 6, 0},
 					Dates: []int64{
-						newSlot(2025, 1, 9, 0),
-						newSlot(2025, 1, 10, 0),
+						time.Date(2025, 1, 9, 0, 0, 0, 0, time.UTC).UnixMilli(),
+						time.Date(2025, 1, 10, 0, 0, 0, 0, time.UTC).UnixMilli(),
 					},
 				},
 			},
@@ -257,8 +257,8 @@ func TestCreateSchedules(t *testing.T) {
 			Gap:  40,
 			Days: []int{4, 5, 6},
 			Dates: []int64{
-				newSlot(2025, 1, 8, 0),
-				newSlot(2025, 1, 9, 0),
+				time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC).UnixMilli(),
+				time.Date(2025, 1, 9, 0, 0, 0, 0, time.UTC).UnixMilli(),
 			},
 
 			Schedules: []Schedule{
@@ -267,8 +267,8 @@ func TestCreateSchedules(t *testing.T) {
 					To:   "24:10",
 					Days: []int{4, 5, 6},
 					Dates: []int64{
-						newSlot(2025, 1, 8, 0),
-						newSlot(2025, 1, 9, 0),
+						time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC).UnixMilli(),
+						time.Date(2025, 1, 9, 0, 0, 0, 0, time.UTC).UnixMilli(),
 					},
 				},
 			},
@@ -295,7 +295,7 @@ func TestCreateSchedules(t *testing.T) {
 func TestBookedSlots(t *testing.T) {
 	type TestCase struct {
 		slots         []time.Time
-		date          int64 // (optional) default is the date of the first slot
+		date          int64 // (optional) default - schedule date
 		from          int
 		to            int
 		size          int
@@ -305,6 +305,16 @@ func TestBookedSlots(t *testing.T) {
 	}
 
 	cases := []TestCase{
+		{
+			slots: []time.Time{time.Date(2024, 12, 16, 12, 00, 0, 0, time.UTC)}, // 2024-12-16 12:00
+			from:  12 * 60,
+			to:    12 * 60,
+			size:  20,
+			gap:   20,
+			//
+			answer:        []int64{},
+			answerReplace: []int64{},
+		},
 		{
 			slots: []time.Time{time.Date(2024, 12, 16, 14, 20, 0, 0, time.UTC)}, // 2024-12-16 14:20
 			from:  12 * 60,
@@ -493,7 +503,7 @@ func TestBookedSlots(t *testing.T) {
 	}
 
 	checkTestCase := func(slots map[int64][]time.Time, c *TestCase, replace bool) {
-		stamps := getBookedSlots(
+		stamps := getRoutBookedSlots(
 			slots,
 			c.date,
 			c.from,
