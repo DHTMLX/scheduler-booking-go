@@ -139,8 +139,10 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 				// empty schedules
 				recDate := time.UnixMilli(rec.Date).UTC()
 				for _, day := range recDays {
-					offset := (7 + day - tWeekDay) % 7
-					for date := today.AddDate(0, 0, offset); date.Before(recDate); date = date.AddDate(0, 0, 7) {
+					offset := (day - tWeekDay) % 7
+
+					date := today.AddDate(0, 0, offset)
+					for ; date.Before(recDate) && today.Before(date.Add(time.Duration(recSch.To)*time.Minute)); date = date.AddDate(0, 0, 7) {
 						// deleted
 						emptySch := createEmpty(recSch.From, recSch.To, date.UnixMilli(), recID)
 						routines = append(routines, *emptySch)
@@ -161,7 +163,6 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 			// booked slots
 			if !rout.Deleted {
 				booked := getRoutBookedSlots(slotsDates, rout.Date, routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, replace)
-				// booked := getBookedSlots(slotsDates, nil, nil, rout.Date, routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, nil, replace)
 				for _, slot := range booked {
 					bookedSlots[slot] = struct{}{}
 				}
@@ -373,7 +374,6 @@ func getSlots(slotsDates map[int64][]time.Time, slotsDays map[int][]time.Time, d
 			slots = append(slots, slotsDays[(day+1)%7]...)
 		}
 
-		log.Print(slots)
 		return slots
 	}
 
