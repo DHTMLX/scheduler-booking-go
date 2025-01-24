@@ -60,6 +60,7 @@ func (s *unitsService) GetAll() ([]Unit, error) {
 
 func createUnits(doctors []data.Doctor, replace bool) []Unit {
 	today := data.DateNow() // date only
+	todayMilli := data.DateNow().UnixMilli()
 	tWeekDay := int(today.Weekday())
 
 	units := make([]Unit, len(doctors))
@@ -137,14 +138,11 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 				}
 
 				// empty schedules
-				recDate := time.UnixMilli(rec.Date).UTC()
 				for _, day := range recDays {
 					offset := (day - tWeekDay) % 7
-
-					date := today.AddDate(0, 0, offset)
-					for ; date.Before(recDate) && today.Before(date.Add(time.Duration(recSch.To)*time.Minute)); date = date.AddDate(0, 0, 7) {
+					for date := newStamp(todayMilli, offset*allDay); date < rec.Date; date = newStamp(date, 7*allDay) {
 						// deleted
-						emptySch := createEmpty(recSch.From, recSch.To, date.UnixMilli(), recID)
+						emptySch := createEmpty(recSch.From, recSch.To, date, recID)
 						routines = append(routines, *emptySch)
 					}
 				}
@@ -159,6 +157,10 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 		// routine events
 		for _, routSch := range routines {
 			rout := routSch.DoctorRoutine
+
+			if todayMilli >= newStamp(rout.Date, routSch.To) {
+				continue
+			}
 
 			// booked slots
 			if !rout.Deleted {

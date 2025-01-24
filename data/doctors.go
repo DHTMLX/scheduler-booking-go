@@ -24,13 +24,13 @@ func (d *doctorsDAO) GetAll(preload bool) ([]Doctor, error) {
 	if !preload {
 		err = d.db.Find(&doctors).Error
 	} else {
-		date := DateNow().UnixMilli()
+		now := Now().UnixMilli()
 		err = d.db.
 			Preload("Review").
-			Preload("OccupiedSlots", "date >= ?", date).
+			Preload("OccupiedSlots", "date >= ?", now).
 			Preload("DoctorSchedule").
 			Preload("DoctorSchedule.DoctorRecurringRoutine").
-			Preload("DoctorSchedule.DoctorRoutine", "date >= ?", date).
+			Preload("DoctorSchedule.DoctorRoutine").
 			Find(&doctors).Error
 	}
 
