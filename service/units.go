@@ -211,15 +211,9 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 				// empty for recurring
 				emptyDates := emptyDates(deleted, activeDates, sch.From.Get())
 				if len(emptyDates) > 0 {
-					emptySch := Schedule{
-						From:  sch.From,
-						To:    sch.From,
-						Size:  sch.Size,
-						Gap:   sch.Gap,
-						Dates: emptyDates,
-					}
-
-					schedules = append(schedules, emptySch)
+					from := sch.From.Get()
+					emptySch := newSchedule(from, from, sch.Size, sch.Gap, []int{}, emptyDates)
+					schedules = append(schedules, *emptySch)
 				}
 			}
 		}
