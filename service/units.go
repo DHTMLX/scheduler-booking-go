@@ -117,7 +117,9 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 					}
 
 					origFrom := original.Hour()*60 + original.Minute()
-					if recSch.From == origFrom {
+					origDate := original.Truncate(oneDay).UnixMilli()
+
+					if recSch.From == origFrom && rec.Date <= origDate {
 						origDay := int(original.Weekday())
 						for _, recDay := range recDays {
 							if recDay == origDay {
@@ -125,8 +127,6 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 								if !ext.Deleted {
 									routines = append(routines, extSch)
 								}
-
-								origDate := original.Truncate(oneDay).UnixMilli()
 
 								// deleted
 								emptySch := createEmpty(recSch.From, recSch.To, origDate, recID)
