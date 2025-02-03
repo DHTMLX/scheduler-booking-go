@@ -44,8 +44,16 @@ func main() {
 
 	if Config.Server.ResetFrequence > 0 {
 		go func() {
-			f := time.Duration(Config.Server.ResetFrequence) * time.Minute
-			ticker := time.NewTicker(f)
+			now := time.Now().UTC()
+			freq := time.Duration(Config.Server.ResetFrequence) * time.Minute
+
+			next := now.Truncate(freq).Add(freq).Sub(now)
+			time.Sleep(next)
+
+			log.Println("Reset data...")
+			dao.RestartData()
+
+			ticker := time.NewTicker(freq)
 			for range ticker.C {
 				log.Println("Reset data...")
 				dao.RestartData()
