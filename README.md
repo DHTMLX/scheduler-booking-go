@@ -2,8 +2,17 @@
 
 ## How to use
 
+Docker Compose:
+
 ```
-docker-compose up --build
+docker compose up
+```
+
+Golang environment:
+
+```
+go build
+./scheduler-booking
 ```
 
 # API
@@ -71,7 +80,7 @@ Returns a list of doctors (without images)
 
 ### GET /doctors/worktime
 
-Returns a list of doctor's schedule with concrete dates (excluding recurring slots and expired dates).
+Returns a list of doctor's schedule (excluding expired dates).
 You can show this data on Doctors view in Booking-Scheduler Demo
 
 #### Response exapmle
@@ -89,8 +98,8 @@ You can show this data on Doctors view in Booking-Scheduler Demo
   {
     "id": 2,
     "doctor_id": 1,
-    "start_date": "2024-10-29 08:00:00",
-    "end_date": "2024-10-29 16:00:00"
+    "start_date": "2024-10-29 18:00:00",
+    "end_date": "2024-10-29 22:00:00"
   },
   {
     "id": 3,
@@ -98,11 +107,24 @@ You can show this data on Doctors view in Booking-Scheduler Demo
     "start_date": "2024-10-30 18:00:00",
     "end_date": "2024-10-30 22:00:00"
   },
+  // extension
   {
     "id": 4,
     "doctor_id": 1,
-    "start_date": "2024-10-31 08:00:00",
-    "end_date": "2024-10-31 16:00:00"
+    "start_date": "2024-10-31 09:00:00",
+    "end_date": "2024-10-31 17:00:00",
+    "recurring_event_id": 1,
+    "original": "2024-10-30 09:00:00"
+  },
+  // removed extension
+  {
+    "id": 5,
+    "doctor_id": 1,
+    "start_date": "2024-11-2 09:00:00",
+    "end_date": "2024-11-2 17:00:00",
+    "recurring_event_id": 1,
+    "original": "2024-11-01 09:00:00",
+    "deleted": true
   }
   ...
 ]
@@ -110,7 +132,7 @@ You can show this data on Doctors view in Booking-Scheduler Demo
 
 ### POST /doctors/worktime
 
-Creates a new doctor's schedule with concrete date (Doctors view)
+Creates a new doctor's schedule with **concrete date** (Doctors view)
 
 #### Body
 
@@ -122,7 +144,7 @@ Creates a new doctor's schedule with concrete date (Doctors view)
 }
 ```
 
-Creates a new doctor's schedule with recurring date (Doctors view)
+Creates a new doctor's schedule with **recurring days** (Doctors view)
 
 #### Body
 
@@ -138,11 +160,12 @@ Creates a new doctor's schedule with recurring date (Doctors view)
 
 ### Response example
 
-Returns an id of created schedule (Doctors view)
+Returns an ID and action of created schedule (Doctors view)
 
 ```js
 {
-  "id": 10
+  "tid": 10,
+  "action": "inserted" // or "deleted" if removed event was created for recurring event
 }
 ```
 
@@ -160,41 +183,52 @@ Updates doctor's schedule
 }
 ```
 
-Updates recurring doctor's schedule
+Updates **recurring** doctor's schedule
 
 #### Body
 
 ```js
 {
   "doctor_id": 1,
-  "end_date": "2024-10-31 10:30",
+  "start_date": "2024-10-31 10:30",
   "duration":	14400, // in seconds (4 hours)
-  "start_date": "9999-02-01 00:00:00",
+  "end_date": "9999-02-01 00:00:00",
   "rrule":	"FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR"
 }
 ```
 
 ### Response example
 
-Returns an id of updated schedule (Doctors view)
+Returns an ID and action of updated schedule (Doctors view)
 
 ```js
 {
-  "id": 10
+  "tid": 10,
+  "action": "updated"
 }
 ```
 
 #### URL Params:
 
-- id [required] - id of the schedule to be updated
+- id [required] - ID of the schedule to be updated
 
 ### DELETE /doctors/worktime/{id}
 
 Deletes doctor's schedule (Doctors view)
 
+### Response example
+
+Returns an ID and action of updated schedule (Doctors view)
+
+```js
+{
+  "action": "deleted"
+}
+```
+
 #### URL Params:
 
-- id [required] - id of the schedule to be deleted
+- id [required] - ID of the schedule to be deleted
 
 ### GET /doctors/reservations
 
@@ -248,13 +282,19 @@ Deletes reservation
 
 #### URL Params:
 
-- id [required] - id of the reservation to be deleted
+- id [required] - ID of the reservation to be deleted
+
+# Features
+
+### Used slots
+
+Booking processes only exact matches of used slots for the doctor. If the booked slot does not equal one of the slots, then the two closest slots will be booked (given that they are relevant)
 
 # Config
 
 ```yaml
 db:
-  path: db.sqlite # path to the database
+  path: db.sqlite    # path to the database
   resetonstart: true # reset data on server restart
 server:
   url: "http://localhost:3000"
