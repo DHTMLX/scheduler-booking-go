@@ -23,6 +23,10 @@ func NewAPI(service *service.ServiceAll) *API {
 
 func (api *API) InitRoutes(r chi.Router) {
 
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		api.response(w, "Server launched successfully!", nil)
+	})
+
 	r.Get("/units", func(w http.ResponseWriter, r *http.Request) {
 		units, err := api.sAll.Units.GetAll()
 		api.response(w, units, err)
