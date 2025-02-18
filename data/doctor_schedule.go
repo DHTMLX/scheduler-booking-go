@@ -51,7 +51,7 @@ func (d *doctorsScheduleDAO) AddRoutineOnDate(doctorID, from, to int, date int64
 	var docRout *DoctorRoutine
 	var docRecRout *DoctorRecurringRoutine
 
-	if rrule == "" {
+	if rrule == "" || original != "" {
 		docRout = &DoctorRoutine{
 			Date:             date,
 			OriginalStart:    original,
@@ -109,7 +109,7 @@ func (d *doctorsScheduleDAO) UpdateDateSchedule(id, doctorID, from, to int, date
 	var docRout *DoctorRoutine
 	var docRecRout *DoctorRecurringRoutine
 
-	if rrule == "" {
+	if rrule == "" || original != "" {
 		docRout = &DoctorRoutine{
 			Date:             date,
 			OriginalStart:    original,
