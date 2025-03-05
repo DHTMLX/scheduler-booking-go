@@ -60,7 +60,7 @@ func (s *unitsService) GetAll() ([]Unit, error) {
 
 func createUnits(doctors []data.Doctor, replace bool) []Unit {
 	today := data.DateNow() // date only
-	todayMilli := data.DateNow().UnixMilli()
+	todayMilli := today.UnixMilli()
 	tWeekDay := int(today.Weekday())
 
 	units := make([]Unit, len(doctors))
@@ -99,7 +99,7 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 			}
 		}
 
-		// pre-recurring events
+		// extensions events
 		for _, recSch := range doctor.DoctorSchedule {
 			if rec := recSch.DoctorRecurringRoutine; rec != nil {
 				recID := strconv.Itoa(recSch.ID)
@@ -112,7 +112,7 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 
 					original, err := time.Parse("2006-01-02 15:04", ext.OriginalStart)
 					if err != nil {
-						log.Printf("ERROR: failed to parse original start time: %v", err)
+						log.Printf("failed to parse original start time: %v", err)
 						continue
 					}
 
@@ -204,14 +204,15 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 			deleted := empty[recID]
 			newSchedules := createSchedules(recSch.From, recSch.To, doctor.SlotSize, doctor.Gap, recDays, nil)
 			for _, sch := range newSchedules {
+				from := sch.From.Get()
+
 				// additional for recurring
-				sch.Dates = additionalDates(sch.Days, weekDates, deleted, sch.From.Get())
+				sch.Dates = additionalDates(sch.Days, weekDates, deleted, from)
 				schedules = append(schedules, sch)
 
 				// empty for recurring
-				emptyDates := emptyDates(deleted, activeDates, sch.From.Get())
+				emptyDates := emptyDates(deleted, activeDates, from)
 				if len(emptyDates) > 0 {
-					from := sch.From.Get()
 					emptySch := newSchedule(from, from, sch.Size, sch.Gap, []int{}, emptyDates)
 					schedules = append(schedules, *emptySch)
 				}
@@ -277,7 +278,7 @@ func createEmpty(from, to int, date int64, recID string) *data.DoctorSchedule {
 // booked slots
 
 func getRoutBookedSlots(slots map[int64][]time.Time, date int64, from, to, size, gap int, replace bool) []int64 {
-	return getBookedSlots(slots, nil, nil, date, from, to, size, gap, nil, replace)
+	return getBookedSlots(slots, nil, []int{-1}, date, from, to, size, gap, nil, replace)
 }
 
 func getRecBookedSlots(slots map[int][]time.Time, days []int, date int64, from, to, size, gap int, exts map[int64]struct{}, replace bool) []int64 {
@@ -302,19 +303,14 @@ func getBookedSlots(slotsDates map[int64][]time.Time, slotsDays map[int][]time.T
 	prev := from-segment < 0 // prev day
 	next := newTo > allDay   // next day
 
-	var ok bool
+	var exists bool
 	bookedSlots := make([]int64, 0, len(slotsDates))
-
-	if len(days) == 0 {
-		days = []int{0}
-	}
-
 	for _, day := range days {
 		slots := getSlots(slotsDates, slotsDays, day, date, prev, next)
 		for _, slot := range slots {
 			if exts != nil {
-				current, currentDate, ok = checkExtension(day, from, slot, exts)
-				if ok {
+				current, currentDate, exists = checkExtension(day, from, slot, exts)
+				if exists {
 					continue
 				}
 			}
@@ -386,9 +382,8 @@ func checkExtension(day, from int, slot time.Time, exts map[int64]struct{}) (tim
 	current := slot.Truncate(oneDay).AddDate(0, 0, diff)
 	currentDate := current.UnixMilli()
 
-	_, ok := exts[newStamp(currentDate, from)]
-
-	return current, currentDate, ok
+	_, exists := exts[newStamp(currentDate, from)]
+	return current, currentDate, exists
 }
 
 // booking schedules for events
@@ -447,7 +442,7 @@ func additionalDates(days []int, weekDates map[int][]int64, deleted map[int64]st
 
 	for _, day := range days {
 		for _, date := range weekDates[day] {
-			if _, ok := deleted[newStamp(date, from)]; !ok {
+			if _, exists := deleted[newStamp(date, from)]; !exists {
 				dates[date] = struct{}{}
 			}
 		}
@@ -469,7 +464,7 @@ func emptyDates(deleted, activeDates map[int64]struct{}, from int) []int64 {
 		emptyFrom := empty.Hour()*60 + empty.Minute()
 		emptyDate := empty.Truncate(oneDay).UnixMilli()
 
-		if _, ok := activeDates[emptyDate]; !ok && from == emptyFrom {
+		if _, exists := activeDates[emptyDate]; !exists && from == emptyFrom {
 			emptyDates = append(emptyDates, emptyDate)
 		}
 	}

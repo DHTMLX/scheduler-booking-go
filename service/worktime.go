@@ -82,7 +82,7 @@ func (s *worktimeService) GetRoutine() ([]DoctorRoutineStr, error) {
 	return out, err
 }
 
-// adds doctor's schedule for the specific day
+// adds doctor's schedule
 func (s *worktimeService) Add(data Worktime) (int, error) {
 	if err := data.validate(); err != nil {
 		return 0, err
@@ -107,7 +107,7 @@ func (s *worktimeService) Add(data Worktime) (int, error) {
 	return id, err
 }
 
-// updates doctor's schedule for the specifc day
+// updates doctor's schedule
 func (s *worktimeService) UpdateDateSchedule(scheduleId int, data Worktime) error {
 	schedule, err := s.dao.DoctorsSchedule.GetOne(scheduleId)
 	if err != nil {

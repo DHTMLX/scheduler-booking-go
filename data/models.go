@@ -40,8 +40,6 @@ type DoctorRecurringRoutine struct {
 
 	Rrule    string
 	Duration int // in seconds
-
-	DoctorSchedule DoctorSchedule `gorm:"foreignkey:ScheduleID"`
 }
 
 type DoctorRoutine struct {
@@ -52,8 +50,6 @@ type DoctorRoutine struct {
 	RecurringEventID string
 	OriginalStart    string
 	Deleted          bool
-
-	DoctorSchedule DoctorSchedule `gorm:"foreignkey:ScheduleID"`
 }
 
 type OccupiedSlot struct {
