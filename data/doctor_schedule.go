@@ -16,31 +16,14 @@ func newDoctorsScheduleDAO(db *gorm.DB) *doctorsScheduleDAO {
 
 func (d *doctorsScheduleDAO) GetOne(id int) (DoctorSchedule, error) {
 	data := DoctorSchedule{}
-	err := d.db.
-		Preload("DoctorRoutine").
-		Preload("DoctorRecurringRoutine").
-		Find(&data, id).Error
+	err := d.db.Find(&data, id).Error
 	return data, err
 }
 
 func (d *doctorsScheduleDAO) GetAllSchedule() ([]DoctorSchedule, error) {
 	sch := make([]DoctorSchedule, 0)
-
-	err := d.db.
-		Preload("DoctorRoutine").
-		Preload("DoctorRecurringRoutine").
-		Find(&sch).Error
-
+	err := d.db.Find(&sch).Error
 	return sch, err
-}
-
-func (d *doctorsScheduleDAO) RecurringEvent(recID int) ([]DoctorRoutine, error) {
-	data := make([]DoctorRoutine, 0)
-
-	err := d.db.
-		Find(&data, "recurring_event_id = ?", recID).Error
-
-	return data, err
 }
 
 func (d *doctorsScheduleDAO) AddRoutineOnDate(doctorID, from, to int, date int64, rrule string, duration int, original string, recID string, deleted bool) (int, error) {
@@ -48,30 +31,16 @@ func (d *doctorsScheduleDAO) AddRoutineOnDate(doctorID, from, to int, date int64
 		return 0, errors.New("date argument not defined")
 	}
 
-	var docRout *DoctorRoutine
-	var docRecRout *DoctorRecurringRoutine
-
-	if rrule == "" || original != "" {
-		docRout = &DoctorRoutine{
-			Date:             date,
-			OriginalStart:    original,
-			RecurringEventID: recID,
-			Deleted:          deleted,
-		}
-	} else {
-		docRecRout = &DoctorRecurringRoutine{
-			Date:     date,
-			Rrule:    rrule,
-			Duration: duration,
-		}
-	}
-
 	schedule := DoctorSchedule{
-		DoctorID:               doctorID,
-		From:                   from,
-		To:                     to,
-		DoctorRoutine:          docRout,
-		DoctorRecurringRoutine: docRecRout,
+		DoctorID:         doctorID,
+		From:             from,
+		To:               to,
+		Date:             date,
+		Rrule:            rrule,
+		RecurringEventID: recID,
+		OriginalStart:    original,
+		Duration:         duration,
+		Deleted:          deleted,
 	}
 
 	err := d.db.Save(&schedule).Error
@@ -94,42 +63,16 @@ func (d *doctorsScheduleDAO) UpdateDateSchedule(id, doctorID, from, to int, date
 		return err
 	}
 
-	// delete routine in schedule becaus we dont know routine id
-	err = tx.Delete(&DoctorRoutine{}, "schedule_id = ?", id).Error
-	if err != nil {
-		return err
-	}
-
-	// delete routine in schedule becaus we dont know recurring routine id
-	err = tx.Delete(&DoctorRecurringRoutine{}, "schedule_id = ?", id).Error
-	if err != nil {
-		return err
-	}
-
-	var docRout *DoctorRoutine
-	var docRecRout *DoctorRecurringRoutine
-
-	if rrule == "" || original != "" {
-		docRout = &DoctorRoutine{
-			Date:             date,
-			OriginalStart:    original,
-			RecurringEventID: recID,
-			Deleted:          deleted,
-		}
-	} else {
-		docRecRout = &DoctorRecurringRoutine{
-			Date:     date,
-			Rrule:    rrule,
-			Duration: duration,
-		}
-	}
-
 	newSchedule := DoctorSchedule{
-		DoctorID:               doctorID,
-		From:                   from,
-		To:                     to,
-		DoctorRoutine:          docRout,
-		DoctorRecurringRoutine: docRecRout,
+		DoctorID:         doctorID,
+		From:             from,
+		To:               to,
+		Date:             date,
+		Rrule:            rrule,
+		RecurringEventID: recID,
+		OriginalStart:    original,
+		Duration:         duration,
+		Deleted:          deleted,
 	}
 
 	if schedule.DoctorID == newSchedule.DoctorID {
@@ -159,28 +102,12 @@ func (d *doctorsScheduleDAO) Delete(id int) (err error) {
 		}
 	}()
 
-	err = tx.Delete(&DoctorRoutine{}, "schedule_id = ?", id).Error
+	err = tx.Delete(&DoctorSchedule{}, "recurring_event_id = ?", id).Error
 	if err != nil {
 		return err
 	}
 
-	err = tx.Delete(&DoctorRecurringRoutine{}, "schedule_id = ?", id).Error
-	if err != nil {
-		return err
-	}
-
-	ids := []int{}
-	err = tx.Model(&DoctorRoutine{}).Where("recurring_event_id = ?", id).Pluck("schedule_id", &ids).Error
-	if err != nil {
-		return err
-	}
-
-	err = tx.Delete(&DoctorRoutine{}, "recurring_event_id = ?", id).Error
-	if err != nil {
-		return err
-	}
-
-	err = tx.Delete(&DoctorSchedule{}, "id IN ?", append(ids, id)).Error
+	err = tx.Delete(&DoctorSchedule{}, "id = ?", id).Error
 	if err != nil {
 		return err
 	}

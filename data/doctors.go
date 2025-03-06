@@ -29,8 +29,6 @@ func (d *doctorsDAO) GetAll(preload bool) ([]Doctor, error) {
 			Preload("Review").
 			Preload("OccupiedSlots", "date >= ?", now).
 			Preload("DoctorSchedule").
-			Preload("DoctorSchedule.DoctorRecurringRoutine").
-			Preload("DoctorSchedule.DoctorRoutine").
 			Find(&doctors).Error
 	}
 

@@ -14,7 +14,7 @@ type DBConfig struct {
 type DAO struct {
 	db      *gorm.DB
 	Doctors *doctorsDAO
-	// DoctorsRoutine  *doctorsRoutineDAO
+
 	DoctorsSchedule *doctorsScheduleDAO
 	OccupiedSlots   *occupiedSlotsDAO
 }
@@ -27,12 +27,10 @@ func NewDAO(config DBConfig) *DAO {
 		panic("failed to connect database")
 	}
 
-	db.AutoMigrate(&DoctorRecurringRoutine{})
-	db.AutoMigrate(&OccupiedSlot{})
-	db.AutoMigrate(&DoctorRoutine{})
-	db.AutoMigrate(&DoctorSchedule{})
 	db.AutoMigrate(&Doctor{})
 	db.AutoMigrate(&Review{})
+	db.AutoMigrate(&DoctorSchedule{})
+	db.AutoMigrate(&OccupiedSlot{})
 
 	dao := DAO{db: db}
 	dao.Doctors = newDoctorsDAO(db)

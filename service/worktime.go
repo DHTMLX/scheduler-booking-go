@@ -48,35 +48,26 @@ func (s *worktimeService) GetRoutine() ([]DoctorRoutineStr, error) {
 		th := sch.To / 60
 		tm := sch.To % 60
 
-		if routine := sch.DoctorRoutine; routine != nil {
-			y, m, d := time.UnixMilli(routine.Date).UTC().Date()
+		y, m, d := time.UnixMilli(sch.Date).UTC().Date()
 
-			r := DoctorRoutineStr{
-				ID:               sch.ID,
-				DoctorID:         sch.DoctorID,
-				StartDate:        time.Date(y, m, d, fh, fm, 0, 0, time.UTC).Format(strFormat),
-				EndDate:          time.Date(y, m, d, th, tm, 0, 0, time.UTC).Format(strFormat),
-				OriginalStart:    routine.OriginalStart,
-				RecurringEventID: routine.RecurringEventID,
-				Deleted:          routine.Deleted,
-			}
-
-			out = append(out, r)
+		end := endDate
+		if sch.Rrule == "" {
+			end = time.Date(y, m, d, th, tm, 0, 0, time.UTC).Format(strFormat)
 		}
 
-		if rec := sch.DoctorRecurringRoutine; rec != nil {
-			y, m, d := time.UnixMilli(rec.Date).UTC().Date()
-			r := DoctorRoutineStr{
-				ID:        sch.ID,
-				DoctorID:  sch.DoctorID,
-				StartDate: time.Date(y, m, d, fh, fm, 0, 0, time.UTC).Format(strFormat),
-				EndDate:   endDate,
-				Rrule:     rec.Rrule,
-				Duration:  rec.Duration,
-			}
-
-			out = append(out, r)
+		r := DoctorRoutineStr{
+			ID:               sch.ID,
+			DoctorID:         sch.DoctorID,
+			StartDate:        time.Date(y, m, d, fh, fm, 0, 0, time.UTC).Format(strFormat),
+			EndDate:          end,
+			Rrule:            sch.Rrule,
+			Duration:         sch.Duration,
+			RecurringEventID: sch.RecurringEventID,
+			OriginalStart:    sch.OriginalStart,
+			Deleted:          sch.Deleted,
 		}
+
+		out = append(out, r)
 	}
 
 	return out, err

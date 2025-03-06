@@ -87,67 +87,63 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 		bookedSlots := make(map[int64]struct{})
 		schedules := make([]Schedule, 0)
 
-		// separation of routine events
+		// separation of events
 		for _, sch := range doctor.DoctorSchedule {
-			if rout := sch.DoctorRoutine; rout != nil {
-				if rout.RecurringEventID != "" {
-					extensions[rout.RecurringEventID] = append(extensions[rout.RecurringEventID], sch)
+			if sch.Rrule == "" {
+				if sch.RecurringEventID != "" {
+					extensions[sch.RecurringEventID] = append(extensions[sch.RecurringEventID], sch)
 					continue
 				}
 
 				routines = append(routines, sch)
+			} else {
+				recurring = append(recurring, sch)
 			}
 		}
 
 		// extensions events
-		for _, recSch := range doctor.DoctorSchedule {
-			if rec := recSch.DoctorRecurringRoutine; rec != nil {
-				recID := strconv.Itoa(recSch.ID)
-				recDays := daysFromRules(rec.Rrule)
+		for _, recSch := range recurring {
+			recID := strconv.Itoa(recSch.ID)
+			recDays := daysFromRules(recSch.Rrule)
 
-				// check extensions
-				empty[recID] = make(map[int64]struct{})
-				for _, extSch := range extensions[recID] {
-					ext := extSch.DoctorRoutine
+			// check extensions
+			empty[recID] = make(map[int64]struct{})
+			for _, extSch := range extensions[recID] {
+				original, err := time.Parse("2006-01-02 15:04", extSch.OriginalStart)
+				if err != nil {
+					log.Printf("failed to parse original start time: %v", err)
+					continue
+				}
 
-					original, err := time.Parse("2006-01-02 15:04", ext.OriginalStart)
-					if err != nil {
-						log.Printf("failed to parse original start time: %v", err)
-						continue
-					}
+				origFrom := original.Hour()*60 + original.Minute()
+				origDate := original.Truncate(oneDay).UnixMilli()
 
-					origFrom := original.Hour()*60 + original.Minute()
-					origDate := original.Truncate(oneDay).UnixMilli()
-
-					if recSch.From == origFrom && rec.Date <= origDate {
-						origDay := int(original.Weekday())
-						for _, recDay := range recDays {
-							if recDay == origDay {
-								// extension
-								if !ext.Deleted {
-									routines = append(routines, extSch)
-								}
-
-								// deleted
-								emptySch := createEmpty(recSch.From, recSch.To, origDate, recID)
-								routines = append(routines, *emptySch)
-								break
+				if recSch.From == origFrom && recSch.Date <= origDate {
+					origDay := int(original.Weekday())
+					for _, recDay := range recDays {
+						if recDay == origDay {
+							// extension
+							if !extSch.Deleted {
+								routines = append(routines, extSch)
 							}
+
+							// deleted
+							emptySch := createEmpty(recSch.From, recSch.To, origDate, recID)
+							routines = append(routines, *emptySch)
+							break
 						}
 					}
 				}
+			}
 
-				// empty schedules
-				for _, day := range recDays {
-					offset := (day - tWeekDay) % 7
-					for date := newStamp(todayMilli, offset*allDay); date < rec.Date; date = newStamp(date, 7*allDay) {
-						// deleted
-						emptySch := createEmpty(recSch.From, recSch.To, date, recID)
-						routines = append(routines, *emptySch)
-					}
+			// empty schedules
+			for _, day := range recDays {
+				offset := (day - tWeekDay) % 7
+				for date := newStamp(todayMilli, offset*allDay); date < recSch.Date; date = newStamp(date, 7*allDay) {
+					// deleted
+					emptySch := createEmpty(recSch.From, recSch.To, date, recID)
+					routines = append(routines, *emptySch)
 				}
-
-				recurring = append(recurring, recSch)
 			}
 		}
 
@@ -156,30 +152,28 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 
 		// routine events
 		for _, routSch := range routines {
-			rout := routSch.DoctorRoutine
-
-			if todayMilli >= newStamp(rout.Date, routSch.To) {
+			if todayMilli >= newStamp(routSch.Date, routSch.To) {
 				continue
 			}
 
 			// booked slots
-			if !rout.Deleted {
-				booked := getRoutBookedSlots(slotsDates, rout.Date, routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, replace)
+			if !routSch.Deleted {
+				booked := getRoutBookedSlots(slotsDates, routSch.Date, routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, replace)
 				for _, slot := range booked {
 					bookedSlots[slot] = struct{}{}
 				}
 			}
 
 			// create schedules
-			newSchedules := createSchedules(routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, nil, []int64{rout.Date})
+			newSchedules := createSchedules(routSch.From, routSch.To, doctor.SlotSize, doctor.Gap, nil, []int64{routSch.Date})
 			for _, sch := range newSchedules {
 				date := sch.Dates[0]
 
 				weekDay := int(time.UnixMilli(date).UTC().Weekday())
 				weekDates[weekDay] = append(weekDates[weekDay], date)
 
-				if rout.Deleted {
-					empty[rout.RecurringEventID][newStamp(date, sch.From.Get())] = struct{}{}
+				if routSch.Deleted {
+					empty[routSch.RecurringEventID][newStamp(date, sch.From.Get())] = struct{}{}
 				} else {
 					activeDates[date] = struct{}{}
 					schedules = append(schedules, sch)
@@ -189,13 +183,11 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 
 		// recurring events
 		for _, recSch := range recurring {
-			rec := recSch.DoctorRecurringRoutine
-
 			recID := strconv.Itoa(recSch.ID)
-			recDays := daysFromRules(rec.Rrule)
+			recDays := daysFromRules(recSch.Rrule)
 
 			// booked slots
-			booked := getRecBookedSlots(slotsDays, recDays, rec.Date, recSch.From, recSch.To, doctor.SlotSize, doctor.Gap, empty[recID], replace)
+			booked := getRecBookedSlots(slotsDays, recDays, recSch.Date, recSch.From, recSch.To, doctor.SlotSize, doctor.Gap, empty[recID], replace)
 			for _, slot := range booked {
 				bookedSlots[slot] = struct{}{}
 			}
@@ -265,13 +257,11 @@ func daysFromRules(rrule string) []int {
 
 func createEmpty(from, to int, date int64, recID string) *data.DoctorSchedule {
 	return &data.DoctorSchedule{
-		From: from,
-		To:   to,
-		DoctorRoutine: &data.DoctorRoutine{
-			Date:             date,
-			Deleted:          true,
-			RecurringEventID: recID,
-		},
+		From:             from,
+		To:               to,
+		Date:             date,
+		Deleted:          true,
+		RecurringEventID: recID,
 	}
 }
 

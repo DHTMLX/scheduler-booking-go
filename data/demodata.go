@@ -10,11 +10,9 @@ import (
 
 func dataDown(tx *gorm.DB) {
 	must(tx.Exec("DELETE FROM `doctors`").Error)
-	must(tx.Exec("DELETE FROM `doctor_routine`").Error)
-	must(tx.Exec("DELETE FROM `doctor_schedule`").Error)
-	must(tx.Exec("DELETE FROM `doctor_recurring`").Error)
-	must(tx.Exec("DELETE FROM `occupied_slots`").Error)
 	must(tx.Exec("DELETE FROM `reviews`").Error)
+	must(tx.Exec("DELETE FROM `doctor_schedules`").Error)
+	must(tx.Exec("DELETE FROM `occupied_slots`").Error)
 }
 
 var (
@@ -61,13 +59,11 @@ func dataUp(tx *gorm.DB) {
 		}
 
 		return DoctorSchedule{
-			From: from,
-			To:   to,
-			DoctorRecurringRoutine: &DoctorRecurringRoutine{
-				Date:     todayMilli,
-				Rrule:    "INTERVAL=1;FREQ=WEEKLY;BYDAY=" + strings.ToUpper(rrule),
-				Duration: (to - from) * 60,
-			},
+			From:     from,
+			To:       to,
+			Date:     todayMilli,
+			Rrule:    "INTERVAL=1;FREQ=WEEKLY;BYDAY=" + strings.ToUpper(rrule),
+			Duration: (to - from) * 60,
 		}
 	}
 
@@ -77,9 +73,7 @@ func dataUp(tx *gorm.DB) {
 			routines[i] = DoctorSchedule{
 				From: from,
 				To:   to,
-				DoctorRoutine: &DoctorRoutine{
-					Date: date + int64(i)*24*60*60*1000,
-				},
+				Date: date + int64(i)*24*60*60*1000,
 			}
 		}
 
