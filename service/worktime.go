@@ -39,7 +39,7 @@ const endDate = "9999-02-01 00:00:00"
 
 // returns records for the Scheduler Doctors View
 func (s *worktimeService) GetAll() ([]DoctorRoutineStr, error) {
-	schedule, err := s.dao.DoctorsSchedule.GetAllSchedules()
+	schedule, err := s.dao.DoctorsSchedule.GetAll()
 	out := make([]DoctorRoutineStr, 0)
 
 	for _, sch := range schedule {
@@ -84,7 +84,7 @@ func (s *worktimeService) Add(data Worktime) (int, error) {
 	from := data.StartDate.Hour()*60 + data.StartDate.Minute()
 	to := from + data.duration()
 
-	id, err := s.dao.DoctorsSchedule.AddSchedule(
+	id, err := s.dao.DoctorsSchedule.Add(
 		data.DoctorID,
 		from,
 		to,
@@ -118,7 +118,7 @@ func (s *worktimeService) Update(scheduleID int, data Worktime) error {
 	from := data.StartDate.Hour()*60 + data.StartDate.Minute()
 	to := from + data.duration()
 
-	err = s.dao.DoctorsSchedule.UpdateSchedule(
+	err = s.dao.DoctorsSchedule.Update(
 		scheduleID,
 		data.DoctorID,
 		from,

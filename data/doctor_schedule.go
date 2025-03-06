@@ -20,13 +20,13 @@ func (d *doctorsScheduleDAO) GetOne(id int) (DoctorSchedule, error) {
 	return data, err
 }
 
-func (d *doctorsScheduleDAO) GetAllSchedules() ([]DoctorSchedule, error) {
+func (d *doctorsScheduleDAO) GetAll() ([]DoctorSchedule, error) {
 	sch := make([]DoctorSchedule, 0)
 	err := d.db.Find(&sch).Error
 	return sch, err
 }
 
-func (d *doctorsScheduleDAO) AddSchedule(doctorID, from, to int, date int64, rrule string, duration int, original string, recID string, deleted bool) (int, error) {
+func (d *doctorsScheduleDAO) Add(doctorID, from, to int, date int64, rrule string, duration int, original string, recID string, deleted bool) (int, error) {
 	if date == 0 {
 		return 0, errors.New("date argument not defined")
 	}
@@ -48,7 +48,7 @@ func (d *doctorsScheduleDAO) AddSchedule(doctorID, from, to int, date int64, rru
 	return schedule.ID, err
 }
 
-func (d *doctorsScheduleDAO) UpdateSchedule(id, doctorID, from, to int, date int64, rrule string, duration int, original string, recID string, deleted bool) (err error) {
+func (d *doctorsScheduleDAO) Update(id, doctorID, from, to int, date int64, rrule string, duration int, original string, recID string, deleted bool) (err error) {
 	tx := d.db.Begin()
 	defer func() {
 		if err == nil {
