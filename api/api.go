@@ -38,7 +38,7 @@ func (api *API) InitRoutes(r chi.Router) {
 	})
 
 	r.Get("/doctors/worktime", func(w http.ResponseWriter, r *http.Request) {
-		data, err := api.sAll.Worktime.GetRoutine()
+		data, err := api.sAll.Worktime.GetAll()
 		api.response(w, data, err)
 	})
 
@@ -70,7 +70,7 @@ func (api *API) InitRoutes(r chi.Router) {
 			api.errResponse(w, err.Error())
 			return
 		}
-		err = api.sAll.Worktime.UpdateDateSchedule(id, worktime)
+		err = api.sAll.Worktime.Update(id, worktime)
 
 		api.response(w, &response{Action: "updated"}, err)
 	})

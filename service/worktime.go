@@ -38,8 +38,8 @@ const strFormat = "2006-01-02 15:04:05"
 const endDate = "9999-02-01 00:00:00"
 
 // returns records for the Scheduler Doctors View
-func (s *worktimeService) GetRoutine() ([]DoctorRoutineStr, error) {
-	schedule, err := s.dao.DoctorsSchedule.GetAllSchedule()
+func (s *worktimeService) GetAll() ([]DoctorRoutineStr, error) {
+	schedule, err := s.dao.DoctorsSchedule.GetAllSchedules()
 	out := make([]DoctorRoutineStr, 0)
 
 	for _, sch := range schedule {
@@ -84,7 +84,7 @@ func (s *worktimeService) Add(data Worktime) (int, error) {
 	from := data.StartDate.Hour()*60 + data.StartDate.Minute()
 	to := from + data.duration()
 
-	id, err := s.dao.DoctorsSchedule.AddRoutineOnDate(
+	id, err := s.dao.DoctorsSchedule.AddSchedule(
 		data.DoctorID,
 		from,
 		to,
@@ -99,14 +99,14 @@ func (s *worktimeService) Add(data Worktime) (int, error) {
 }
 
 // updates doctor's schedule
-func (s *worktimeService) UpdateDateSchedule(scheduleId int, data Worktime) error {
-	schedule, err := s.dao.DoctorsSchedule.GetOne(scheduleId)
+func (s *worktimeService) Update(scheduleID int, data Worktime) error {
+	schedule, err := s.dao.DoctorsSchedule.GetOne(scheduleID)
 	if err != nil {
 		return err
 	}
 
 	if schedule.ID == 0 {
-		return fmt.Errorf("schedule with id %d not found", scheduleId)
+		return fmt.Errorf("schedule with id %d not found", scheduleID)
 	}
 
 	if err := data.validate(); err != nil {
@@ -118,8 +118,8 @@ func (s *worktimeService) UpdateDateSchedule(scheduleId int, data Worktime) erro
 	from := data.StartDate.Hour()*60 + data.StartDate.Minute()
 	to := from + data.duration()
 
-	err = s.dao.DoctorsSchedule.UpdateDateSchedule(
-		scheduleId,
+	err = s.dao.DoctorsSchedule.UpdateSchedule(
+		scheduleID,
 		data.DoctorID,
 		from,
 		to,
