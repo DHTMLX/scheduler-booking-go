@@ -69,17 +69,6 @@ func (s *reservationsService) Add(r Reservation) (int, error) {
 	return id, err
 }
 
-func (s *reservationsService) Delete(id int) error {
-	slot, err := s.dao.OccupiedSlots.GetOne(id)
-	if err != nil {
-		return err
-	}
-	if slot.Date < data.Now().UnixMilli() {
-		return fmt.Errorf("cannot delete reservation that time has expired")
-	}
-	return s.dao.OccupiedSlots.Delete(id)
-}
-
 func (s *reservationsService) checkIfReservationIsAvailable(doctorId int, date int64) error {
 	slot, err := s.dao.OccupiedSlots.GetUsedSlot(doctorId, date)
 	if err != nil {

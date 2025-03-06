@@ -12,9 +12,9 @@ type DBConfig struct {
 }
 
 type DAO struct {
-	db      *gorm.DB
-	Doctors *doctorsDAO
+	db *gorm.DB
 
+	Doctors         *doctorsDAO
 	DoctorsSchedule *doctorsScheduleDAO
 	OccupiedSlots   *occupiedSlotsDAO
 }

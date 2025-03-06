@@ -8,13 +8,6 @@ type occupiedSlotsDAO struct {
 	db *gorm.DB
 }
 
-type Query struct {
-	DoctorID  int
-	EqualDate int64
-	MinDate   int64
-	MaxDate   int64
-}
-
 func newOccupiedSlotsDAO(db *gorm.DB) *occupiedSlotsDAO {
 	return &occupiedSlotsDAO{db}
 }
@@ -49,8 +42,4 @@ func (d *occupiedSlotsDAO) Add(doctor int, date int64, name, email, details stri
 	}
 	err := d.db.Save(&record).Error
 	return record.ID, err
-}
-
-func (d *occupiedSlotsDAO) Delete(id ...int) error {
-	return d.db.Delete(&OccupiedSlot{}, id).Error
 }

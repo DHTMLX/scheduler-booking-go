@@ -97,12 +97,6 @@ func (api *API) InitRoutes(r chi.Router) {
 
 		api.response(w, &response{ID: id}, err)
 	})
-
-	r.Delete("/doctors/reservations/{id}", func(w http.ResponseWriter, r *http.Request) {
-		id := numberParam(r, "id")
-		err := api.sAll.Reservations.Delete(id)
-		api.response(w, &response{ID: id}, err)
-	})
 }
 
 func (api *API) response(w http.ResponseWriter, data any, err error) {
