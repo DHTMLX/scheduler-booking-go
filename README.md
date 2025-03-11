@@ -1,14 +1,6 @@
-# Sheduler-booking demo backend
+# Scheduler-Booking Demo Backend
 
 ## How to use
-
-Docker Compose:
-
-```
-docker compose up
-```
-
-Golang environment:
 
 ```
 go build
@@ -83,7 +75,7 @@ Returns a list of doctors (without images)
 Returns a list of doctor's schedule (excluding expired dates).
 You can show this data on Doctors view in Booking-Scheduler Demo
 
-#### Response exapmle
+#### Response example
 
 ```js
 [
@@ -139,8 +131,8 @@ Creates a new doctor's schedule with **concrete date** (Doctors view)
 ```js
 {
   "doctor_id": 1,
-  "end_date": "2024-10-31 10:30",
-  "start_date": "2024-10-31 14:30"
+  "start_date": "2024-10-31 10:30",
+  "end_date": "2024-10-31 14:30"
 }
 ```
 
@@ -151,9 +143,9 @@ Creates a new doctor's schedule with **recurring days** (Doctors view)
 ```js
 {
   "doctor_id": 1,
-  "end_date": "2024-10-28 10:30",
-  "duration":	14400, // in seconds (1 hours)
-  "start_date": "9999-02-01 00:00:00",
+  "start_date": "2024-10-28 10:30",
+  "duration":	14400, // in seconds (4 hours)
+  "end_date": "9999-02-01 00:00:00",
   "rrule":	"FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR"
 }
 ```
@@ -178,8 +170,8 @@ Updates doctor's schedule
 ```js
 {
   "doctor_id": 1,
-  "end_date": "2024-10-31 12:20",
-  "start_date": "2024-10-31 16:55"
+  "start_date": "2024-10-31 12:20",
+  "end_date": "2024-10-31 16:55"
 }
 ```
 
@@ -276,19 +268,15 @@ Creates reservation (Booking view)
 }
 ```
 
-### DELETE /doctors/reservations/{id}
-
-Deletes reservation
-
-#### URL Params:
-
-- id [required] - ID of the reservation to be deleted
-
 # Features
+
+### Booking schedules
+
+If the schedule encompasses midnight and there is enough time for a time slot after it, then the schedule is divided into two parts
 
 ### Used slots
 
-Booking processes only exact matches of used slots for the doctor. If the booked slot does not equal one of the slots, then the two closest slots will be booked (given that they are relevant)
+Booking processes only matches exact used slots for the doctor. If the booked slot does not match any of the slots, the two closest relevant slots will be booked instead
 
 # Config
 
