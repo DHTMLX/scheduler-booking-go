@@ -35,7 +35,6 @@ type DoctorRoutineStr struct {
 }
 
 const strFormat = "2006-01-02 15:04:05"
-const endDate = "9999-02-01 00:00:00"
 
 // returns records for the Scheduler Doctors View
 func (s *worktimeService) GetAll() ([]DoctorRoutineStr, error) {
@@ -50,16 +49,16 @@ func (s *worktimeService) GetAll() ([]DoctorRoutineStr, error) {
 
 		y, m, d := time.UnixMilli(sch.Date).UTC().Date()
 
-		end := endDate
+		end := data.EndDate
 		if sch.Rrule == "" {
-			end = time.Date(y, m, d, th, tm, 0, 0, time.UTC).Format(strFormat)
+			end = time.Date(y, m, d, th, tm, 0, 0, time.UTC)
 		}
 
 		r := DoctorRoutineStr{
 			ID:               sch.ID,
 			DoctorID:         sch.DoctorID,
 			StartDate:        time.Date(y, m, d, fh, fm, 0, 0, time.UTC).Format(strFormat),
-			EndDate:          end,
+			EndDate:          end.Format(strFormat),
 			Rrule:            sch.Rrule,
 			Duration:         sch.Duration,
 			RecurringEventID: sch.RecurringEventID,

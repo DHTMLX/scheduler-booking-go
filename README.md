@@ -84,7 +84,7 @@ You can show this data on Doctors view in Booking-Scheduler Demo
     "doctor_id": 1,
     "start_date": "2024-10-28 09:00:00",
     "duration": 28800, // in seconds (8 hours)
-    "end_date": "9999-02-01 00:00:00",
+    "end_date": "2026-10-28 00:00:00",
     "rrule": "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR" // reccuring events
   },
   {
@@ -145,7 +145,7 @@ Creates a new doctor's schedule with **recurring days** (Doctors view)
   "doctor_id": 1,
   "start_date": "2024-10-28 10:30",
   "duration":	14400, // in seconds (4 hours)
-  "end_date": "9999-02-01 00:00:00",
+  "end_date": "2026-10-28 00:00:00",
   "rrule":	"FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR"
 }
 ```
@@ -184,7 +184,7 @@ Updates **recurring** doctor's schedule
   "doctor_id": 1,
   "start_date": "2024-10-31 10:30",
   "duration":	14400, // in seconds (4 hours)
-  "end_date": "9999-02-01 00:00:00",
+  "end_date": "2026-10-28 00:00:00",
   "rrule":	"FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR"
 }
 ```

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -43,13 +44,17 @@ var (
 	}
 )
 
+var EndDate time.Time
+
 const (
 	nameFormat  = "%s %s"
 	emailFormat = "%s.%s@scheduler.booking"
 )
 
 func dataUp(tx *gorm.DB) {
-	today := DateNow() // date only
+	today := DateNow()               // date only
+	EndDate = today.AddDate(2, 0, 0) // add 2 years
+
 	todayMilli := today.UnixMilli()
 	tWeekDay := int(today.Weekday())
 
