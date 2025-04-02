@@ -99,7 +99,7 @@ You can show this data on Doctors view in Booking-Scheduler Demo
     "start_date": "2024-10-30 18:00:00",
     "end_date": "2024-10-30 22:00:00"
   },
-  // extension
+  // exception
   {
     "id": 4,
     "doctor_id": 1,
@@ -108,7 +108,7 @@ You can show this data on Doctors view in Booking-Scheduler Demo
     "recurring_event_id": 1,
     "original": "2024-10-30 09:00:00"
   },
-  // removed extension
+  // removed exception
   {
     "id": 5,
     "doctor_id": 1,

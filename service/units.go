@@ -81,7 +81,7 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 
 		routines := make([]data.DoctorSchedule, 0, len(doctor.DoctorSchedule))  // []sch
 		recurring := make([]data.DoctorSchedule, 0, len(doctor.DoctorSchedule)) // []sch
-		extensions := make(map[string][]data.DoctorSchedule)                    // recID -> []sch
+		exceptions := make(map[string][]data.DoctorSchedule)                    // recID -> []sch
 		empty := make(map[string]map[int64]struct{})                            // recID -> map timestamp
 
 		bookedSlots := make(map[int64]struct{})
@@ -91,7 +91,7 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 		for _, sch := range doctor.DoctorSchedule {
 			if sch.Rrule == "" {
 				if sch.RecurringEventID != "" {
-					extensions[sch.RecurringEventID] = append(extensions[sch.RecurringEventID], sch)
+					exceptions[sch.RecurringEventID] = append(exceptions[sch.RecurringEventID], sch)
 					continue
 				}
 
@@ -101,15 +101,15 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 			}
 		}
 
-		// extensions events
+		// exception events
 		for _, recSch := range recurring {
 			recID := strconv.Itoa(recSch.ID)
 			recDays := daysFromRules(recSch.Rrule)
 
-			// check extensions
+			// check exceptions
 			empty[recID] = make(map[int64]struct{})
-			for _, extSch := range extensions[recID] {
-				original, err := time.Parse("2006-01-02 15:04", extSch.OriginalStart)
+			for _, excSch := range exceptions[recID] {
+				original, err := time.Parse("2006-01-02 15:04", excSch.OriginalStart)
 				if err != nil {
 					log.Printf("failed to parse original start time: %v", err)
 					continue
@@ -122,9 +122,9 @@ func createUnits(doctors []data.Doctor, replace bool) []Unit {
 					origDay := int(original.Weekday())
 					for _, recDay := range recDays {
 						if recDay == origDay {
-							// extension
-							if !extSch.Deleted {
-								routines = append(routines, extSch)
+							// exception
+							if !excSch.Deleted {
+								routines = append(routines, excSch)
 							}
 
 							// deleted
@@ -271,11 +271,11 @@ func getRoutBookedSlots(slots map[int64][]time.Time, date int64, from, to, size,
 	return getBookedSlots(slots, nil, []int{-1}, date, from, to, size, gap, nil, replace)
 }
 
-func getRecBookedSlots(slots map[int][]time.Time, days []int, date int64, from, to, size, gap int, exts map[int64]struct{}, replace bool) []int64 {
-	return getBookedSlots(nil, slots, days, date, from, to, size, gap, exts, replace)
+func getRecBookedSlots(slots map[int][]time.Time, days []int, date int64, from, to, size, gap int, exceptions map[int64]struct{}, replace bool) []int64 {
+	return getBookedSlots(nil, slots, days, date, from, to, size, gap, exceptions, replace)
 }
 
-func getBookedSlots(slotsDates map[int64][]time.Time, slotsDays map[int][]time.Time, days []int, date int64, from, to, size, gap int, exts map[int64]struct{}, replace bool) []int64 {
+func getBookedSlots(slotsDates map[int64][]time.Time, slotsDays map[int][]time.Time, days []int, date int64, from, to, size, gap int, exceptions map[int64]struct{}, replace bool) []int64 {
 	if from+size > to {
 		return []int64{}
 	}
@@ -298,8 +298,8 @@ func getBookedSlots(slotsDates map[int64][]time.Time, slotsDays map[int][]time.T
 	for _, day := range days {
 		slots := getSlots(slotsDates, slotsDays, day, date, prev, next)
 		for _, slot := range slots {
-			if exts != nil {
-				current, currentDate, exists = checkExtension(day, from, slot, exts)
+			if exceptions != nil {
+				current, currentDate, exists = checkException(day, from, slot, exceptions)
 				if exists {
 					continue
 				}
@@ -366,13 +366,13 @@ func newStamp(date int64, from int) int64 {
 	return date + int64(from*minuteMilli)
 }
 
-func checkExtension(day, from int, slot time.Time, exts map[int64]struct{}) (time.Time, int64, bool) {
+func checkException(day, from int, slot time.Time, exceptions map[int64]struct{}) (time.Time, int64, bool) {
 	diff := day - int(slot.Weekday())
 
 	current := slot.Truncate(oneDay).AddDate(0, 0, diff)
 	currentDate := current.UnixMilli()
 
-	_, exists := exts[newStamp(currentDate, from)]
+	_, exists := exceptions[newStamp(currentDate, from)]
 	return current, currentDate, exists
 }
 
