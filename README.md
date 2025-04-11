@@ -144,9 +144,9 @@ Creates a new doctor's schedule with **recurring days** (Doctors view)
 {
   "doctor_id": 1,
   "start_date": "2024-10-28 10:30",
-  "duration":	14400, // in seconds (4 hours)
+  "duration": 14400, // in seconds (4 hours)
   "end_date": "2026-10-28 00:00:00",
-  "rrule":	"FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR"
+  "rrule": "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR"
 }
 ```
 
@@ -183,9 +183,9 @@ Updates **recurring** doctor's schedule
 {
   "doctor_id": 1,
   "start_date": "2024-10-31 10:30",
-  "duration":	14400, // in seconds (4 hours)
+  "duration": 14400, // in seconds (4 hours)
   "end_date": "2026-10-28 00:00:00",
-  "rrule":	"FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR"
+  "rrule": "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR"
 }
 ```
 
